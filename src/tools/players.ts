@@ -4,9 +4,7 @@ import { type ToolRegistrar, jsonResult } from "./context.js";
 export const registerPlayerTools: ToolRegistrar = (server, ctx) => {
   server.tool(
     "lookup_player",
-    "Look up a player by username or UUID. Returns player details, ban count, " +
-      "chargeback rate, payment history, and purchase totals. " +
-      "Requires Tebex Ultimate plan or above.",
+    "Look up a player by username or UUID: bans, chargeback rate, payments, purchase totals. Ultimate plan only.",
     {
       identifier: z
         .string()
@@ -20,8 +18,7 @@ export const registerPlayerTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "get_player_packages",
-    "List active (non-expired) packages owned by a player. " +
-      "Optionally filter to a specific package ID to check ownership.",
+    "List active packages owned by a player. Optionally filter by package ID.",
     {
       player_id: z.number().int().describe("Tebex player ID (from lookup_player)"),
       package_id: z

@@ -5,11 +5,8 @@ import { type ToolRegistrar, jsonResult, errorResult } from "./context.js";
 export const registerPaymentTools: ToolRegistrar = (server, ctx) => {
   server.tool(
     "search_payments",
-    "Search and filter payments across the full payment history. " +
-      "Paginates through Tebex payments and filters client-side by username, " +
-      "date range, package, status, and/or amount. Use this instead of " +
-      "list_payments when you need filtered results. " +
-      "Check `has_more` in the response to know if more results exist beyond the scan window.",
+    "Filter payments by username, date range, package, status, and/or amount. " +
+      "Paginates automatically with early-exit on date boundary. Check `has_more` for more results.",
     {
       username: z
         .string()
@@ -137,8 +134,7 @@ export const registerPaymentTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "list_payments",
-    "Get the latest payments (up to 100). Returns transaction id, amount, " +
-      "date, currency, player info, and packages purchased.",
+    "Get the latest payments (up to 100): transaction id, amount, date, player, packages.",
     {
       limit: z
         .number()
@@ -156,8 +152,7 @@ export const registerPaymentTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "list_payments_paged",
-    "Get payments with pagination (25 per page). Use this for browsing " +
-      "through large payment histories.",
+    "Get payments with pagination (25 per page).",
     {
       page: z
         .number()
@@ -174,8 +169,7 @@ export const registerPaymentTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "get_payment",
-    "Get full details of a single payment by its transaction ID. " +
-      "Includes player, packages, amount, status, date, and notes.",
+    "Get full payment details: player, packages, amount, status, date, notes.",
     {
       transaction_id: z
         .string()
@@ -189,8 +183,7 @@ export const registerPaymentTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "get_payment_fields",
-    "Get required fields for creating a manual payment for a specific package. " +
-      "Returns the fields that must be filled in the `options` object when calling create_payment.",
+    "Get required `options` fields for create_payment on a given package.",
     {
       package_id: z.number().int().describe("Package ID"),
     },
@@ -202,8 +195,7 @@ export const registerPaymentTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "create_payment",
-    "Create a manual payment (e.g. for offline or custom transactions). " +
-      "Assigns packages to a player without going through the webstore checkout.",
+    "Create a manual payment — assign packages to a player without checkout.",
     {
       ign: z
         .string()
@@ -230,8 +222,7 @@ export const registerPaymentTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "update_payment",
-    "Update a payment's username or status. Use to mark payments as " +
-      "complete, chargeback, or refund.",
+    "Update a payment's username or status (complete/chargeback/refund).",
     {
       transaction_id: z.string().describe("Transaction ID"),
       username: z.string().optional().describe("New username"),
@@ -248,7 +239,7 @@ export const registerPaymentTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "add_payment_note",
-    "Add an internal note to an existing payment.",
+    "Add a note to a payment.",
     {
       transaction_id: z.string().describe("Transaction ID"),
       note: z.string().describe("Note text to add"),
@@ -261,8 +252,7 @@ export const registerPaymentTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "create_checkout",
-    "Generate a checkout URL for a player and package. Returns a URL the " +
-      "player can visit to complete payment, and its expiration time.",
+    "Generate a checkout URL for a player and package. Returns URL and expiration.",
     {
       package_id: z.number().int().describe("Package ID"),
       username: z.string().describe("Player username"),

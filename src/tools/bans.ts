@@ -4,8 +4,7 @@ import { type ToolRegistrar, jsonResult } from "./context.js";
 export const registerBanTools: ToolRegistrar = (server, ctx) => {
   server.tool(
     "list_bans",
-    "List all bans in the store. Returns ban id, time, ip, payment email, " +
-      "reason, and banned user info.",
+    "List all bans with id, time, ip, email, reason, and user info.",
     {},
     async () => {
       const data = await ctx.client.listBans();
@@ -15,7 +14,7 @@ export const registerBanTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "create_ban",
-    "Ban a user or IP from the store. Banned users cannot complete purchases.",
+    "Ban a user or IP from the store.",
     {
       reason: z.string().describe("Reason for the ban"),
       ip: z.string().optional().describe("IP address to ban"),

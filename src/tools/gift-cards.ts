@@ -4,8 +4,7 @@ import { type ToolRegistrar, jsonResult } from "./context.js";
 export const registerGiftCardTools: ToolRegistrar = (server, ctx) => {
   server.tool(
     "list_gift_cards",
-    "List all gift cards in the store. Returns id, code, balance, " +
-      "starting balance, note, and void status.",
+    "List all gift cards with id, code, balance, note, and void status.",
     {},
     async () => {
       const data = await ctx.client.listGiftCards();
@@ -15,7 +14,7 @@ export const registerGiftCardTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "get_gift_card",
-    "Get full details of a single gift card by its ID.",
+    "Get gift card details by ID.",
     {
       gift_card_id: z.number().int().describe("Gift card ID"),
     },
@@ -27,7 +26,7 @@ export const registerGiftCardTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "lookup_gift_card",
-    "Look up a gift card by its code (the code the customer enters at checkout).",
+    "Look up a gift card by its customer-facing code.",
     {
       code: z.string().describe("Gift card code"),
     },
@@ -39,7 +38,7 @@ export const registerGiftCardTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "create_gift_card",
-    "Create a new gift card with a specified amount, expiration date, and note.",
+    "Create a gift card with amount, expiration, and note.",
     {
       amount: z.number().min(0).describe("Gift card value in store currency"),
       expires_at: z
@@ -59,7 +58,7 @@ export const registerGiftCardTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "topup_gift_card",
-    "Add funds to an existing gift card.",
+    "Add funds to a gift card.",
     {
       gift_card_id: z.number().int().describe("Gift card ID"),
       amount: z.number().min(0).describe("Amount to add in store currency"),
@@ -72,8 +71,7 @@ export const registerGiftCardTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "void_gift_card",
-    "Void (deactivate) a gift card. This is irreversible — the remaining " +
-      "balance becomes unusable.",
+    "Void a gift card. IRREVERSIBLE — remaining balance becomes unusable.",
     {
       gift_card_id: z.number().int().describe("Gift card ID"),
     },

@@ -4,8 +4,7 @@ import { type ToolRegistrar, jsonResult } from "./context.js";
 export const registerPackageTools: ToolRegistrar = (server, ctx) => {
   server.tool(
     "list_categories",
-    "List all categories and their packages as displayed on the webstore. " +
-      "Returns the full category tree with nested package summaries.",
+    "List all categories with nested package summaries.",
     {},
     async () => {
       const data = await ctx.client.getListing();
@@ -15,8 +14,7 @@ export const registerPackageTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "list_packages",
-    "List all packages in the store with full details: id, name, price, " +
-      "image, description, type, category, and sale info.",
+    "List all packages with id, name, price, type, category, and sale info.",
     {},
     async () => {
       const data = await ctx.client.listPackages();
@@ -26,7 +24,7 @@ export const registerPackageTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "get_package",
-    "Get full details of a single package by its ID.",
+    "Get full package details: name, price, description, image, type, category.",
     {
       package_id: z.number().int().describe("Package ID"),
     },
@@ -38,8 +36,7 @@ export const registerPackageTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "update_package",
-    "Update a package's properties. Only provided fields are changed. " +
-      "Can toggle disabled state, rename, or change price.",
+    "Update a package: toggle disabled, rename, or change price. Only provided fields are changed.",
     {
       package_id: z.number().int().describe("Package ID"),
       disabled: z

@@ -4,8 +4,7 @@ import { type ToolRegistrar, jsonResult } from "./context.js";
 export const registerCouponTools: ToolRegistrar = (server, ctx) => {
   server.tool(
     "list_coupons",
-    "List all coupons (paginated). Returns code, discount type/amount, " +
-      "effective scope, expiration, and usage stats.",
+    "List all coupons with code, discount, scope, expiration, and usage stats. Paginated.",
     {},
     async () => {
       const data = await ctx.client.listCoupons();
@@ -15,7 +14,7 @@ export const registerCouponTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "get_coupon",
-    "Get full details of a single coupon by its ID.",
+    "Get coupon details by ID.",
     {
       coupon_id: z.number().int().describe("Coupon ID"),
     },
@@ -27,8 +26,7 @@ export const registerCouponTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "create_coupon",
-    "Create a new coupon with full configuration: code, discount type, " +
-      "scope (package/category/cart), limits, date range, and more.",
+    "Create a coupon: code, discount type, scope, limits, date range.",
     {
       code: z.string().describe("Coupon code customers will enter"),
       effective_on: z
@@ -96,7 +94,7 @@ export const registerCouponTools: ToolRegistrar = (server, ctx) => {
 
   server.tool(
     "delete_coupon",
-    "Delete a coupon. Once deleted, the code can no longer be redeemed.",
+    "Delete a coupon. The code becomes unredeemable.",
     {
       coupon_id: z.number().int().describe("Coupon ID"),
     },
