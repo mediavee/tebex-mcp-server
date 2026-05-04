@@ -9,6 +9,7 @@ Rate limit: 500 requests per 5-minute rolling window (per Tebex docs).
 from __future__ import annotations
 
 import asyncio
+from contextvars import ContextVar
 from typing import Any, Literal, TypedDict
 from urllib.parse import quote
 
@@ -18,6 +19,16 @@ from tebex_mcp.config import Settings
 from tebex_mcp.logging import get_logger
 
 log = get_logger(__name__)
+
+
+# Set per-request by the HTTP middleware from the ``X-Tebex-Secret`` header.
+# Read inside ``_request`` so a single TebexClient instance can serve any
+# number of stores without leaking secrets across concurrent requests.
+current_secret: ContextVar[str | None] = ContextVar("tebex_secret", default=None)
+
+
+class MissingSecretError(RuntimeError):
+    """Raised when a tool runs without an X-Tebex-Secret in the request context."""
 
 
 PaymentStatus = Literal["complete", "chargeback", "refund"]
@@ -80,10 +91,7 @@ class TebexClient:
         self._settings = settings
         self._http = httpx.AsyncClient(
             base_url=self.BASE_URL,
-            headers={
-                "Accept": "application/json",
-                "X-Tebex-Secret": settings.tebex_secret.get_secret_value(),
-            },
+            headers={"Accept": "application/json"},
             timeout=httpx.Timeout(30.0, connect=10.0),
             transport=httpx.AsyncHTTPTransport(retries=2),
         )
@@ -104,11 +112,21 @@ class TebexClient:
     ) -> Any:
         params = {k: v for k, v in (query or {}).items() if v is not None}
 
+        secret = current_secret.get()
+        if not secret:
+            raise MissingSecretError(
+                "No Tebex secret in request context — the HTTP middleware should "
+                "have rejected this request earlier."
+            )
+        request_headers = {"X-Tebex-Secret": secret}
+
         last_exc: Exception | None = None
         backoff = 0.4
         for attempt in range(retries):
             try:
-                resp = await self._http.request(method, path, params=params, json=body)
+                resp = await self._http.request(
+                    method, path, params=params, json=body, headers=request_headers
+                )
             except httpx.RequestError as exc:
                 last_exc = exc
                 if attempt == retries - 1:

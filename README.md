@@ -34,7 +34,7 @@ The Tebex Plugin API is a clean REST surface but it's tedious to use from a chat
 
 ### 1. Prerequisites
 
-- A Tebex creator account with a per-server **Plugin API secret key** (`Creator Panel → Game Servers → Secret Key`)
+- One or more Tebex **Plugin API secret keys** (`Creator Panel → Game Servers → Secret Key`, one per store you want to manage)
 - Python **3.12+** **or** Docker
 - (Dev) [`uv`](https://github.com/astral-sh/uv) for dependency management
 
@@ -44,10 +44,9 @@ The Tebex Plugin API is a clean REST surface but it's tedious to use from a chat
 cp .env.example .env
 ```
 
-Fill in the two required values:
+Only `MCP_AUTH_TOKEN` is required server-side. Tebex secrets are **not** stored on the server — each MCP client passes its store's secret on every request via the `X-Tebex-Secret` header (see Multi-store usage below).
 
 ```env
-TEBEX_SECRET=<your per-server secret key>
 MCP_AUTH_TOKEN=$(openssl rand -hex 32)
 ```
 
@@ -61,9 +60,16 @@ The server listens on `http://0.0.0.0:3000/mcp` by default. A `/healthz` endpoin
 
 ### 4. Connect Claude Code
 
+One MCP entry per Tebex store, all pointing at the same server with a different `X-Tebex-Secret`:
+
 ```bash
-claude mcp add tebex --transport http http://localhost:3000/mcp \
-  --header "Authorization: Bearer $MCP_AUTH_TOKEN"
+claude mcp add tebex-storeFR --transport http http://localhost:3000/mcp \
+  --header "Authorization: Bearer $MCP_AUTH_TOKEN" \
+  --header "X-Tebex-Secret: $STORE_FR_SECRET"
+
+claude mcp add tebex-storeEN --transport http http://localhost:3000/mcp \
+  --header "Authorization: Bearer $MCP_AUTH_TOKEN" \
+  --header "X-Tebex-Secret: $STORE_EN_SECRET"
 ```
 
 For Claude Desktop or other clients that use JSON config:
@@ -71,11 +77,20 @@ For Claude Desktop or other clients that use JSON config:
 ```json
 {
   "mcpServers": {
-    "tebex": {
+    "tebex-storeFR": {
       "type": "http",
       "url": "http://localhost:3000/mcp",
       "headers": {
-        "Authorization": "Bearer <your token>"
+        "Authorization": "Bearer <your bearer token>",
+        "X-Tebex-Secret": "<your store FR secret>"
+      }
+    },
+    "tebex-storeEN": {
+      "type": "http",
+      "url": "http://localhost:3000/mcp",
+      "headers": {
+        "Authorization": "Bearer <your bearer token>",
+        "X-Tebex-Secret": "<your store EN secret>"
       }
     }
   }
@@ -83,6 +98,17 @@ For Claude Desktop or other clients that use JSON config:
 ```
 
 Once connected, the skill file [`SKILL.md`](./SKILL.md) at the repo root is picked up automatically by clients that support it, giving the assistant concrete methodology for common flows (refund a payment, search a player's history, create a coupon, etc.).
+
+## Multi-store usage
+
+A single `tebex-mcp` instance serves any number of Tebex stores. The server holds **no Tebex secret in its config** — every `/mcp` request must include an `X-Tebex-Secret` header carrying the per-store Plugin API secret, and the server uses it for the upstream call to `https://plugin.tebex.io`.
+
+- The secret lives in your MCP client config (Claude Code/Desktop), one entry per store.
+- Concurrent requests from different MCP entries are isolated via a Python `ContextVar` set by the auth middleware — there is no global mutable state.
+- A request without a valid `X-Tebex-Secret` is rejected with HTTP 400 before reaching FastMCP.
+- Rate limits (500 req / 5 min) are naturally per-secret on Tebex's side, so isolating stores by secret also isolates their quotas.
+
+To switch stores from Claude Code at runtime, use `claude mcp` to enable/disable the entry you want, or talk directly to the entry whose name matches the target store.
 
 ## Tools
 
@@ -147,12 +173,13 @@ All configuration is via environment variables (loaded from process env, then `.
 
 | Variable         | Required | Default     | Description                                                            |
 |------------------|----------|-------------|------------------------------------------------------------------------|
-| `TEBEX_SECRET`   | yes      | —           | Tebex Plugin API secret key (per-server, sent as `X-Tebex-Secret`)     |
 | `MCP_AUTH_TOKEN` | yes      | —           | Bearer token required by every MCP client. `openssl rand -hex 32`      |
 | `HTTP_HOST`      | no       | `0.0.0.0`   | Bind host for the HTTP listener                                        |
 | `HTTP_PORT`      | no       | `3000`      | Bind port                                                              |
 | `LOG_LEVEL`      | no       | `INFO`      | Logger level (`DEBUG`, `INFO`, `WARNING`, `ERROR`)                     |
 | `LOG_JSON`       | no       | `false`     | Emit logs as JSON (recommended for production)                         |
+
+The Tebex Plugin API secret is **not** an env var — it is supplied per-request by the MCP client through the `X-Tebex-Secret` header (see Multi-store usage above).
 
 The included `docker-compose.yml` also honors a `HTTP_BIND` variable for the *host-side* of the port mapping — set it to a Tailscale IP or `127.0.0.1` to avoid exposing the server on public interfaces.
 
@@ -223,9 +250,9 @@ Everything else — auth middleware, FastMCP lifespan, structured logging, Docke
 
 ## Deployment notes
 
-- **Security.** `MCP_AUTH_TOKEN` is the only thing between the network and your Tebex secret. Bind to a private interface (Tailscale, VPN, or loopback behind a trusted reverse proxy) in any real deployment. `.env` is in `.gitignore` — keep it that way.
-- **Rate limit.** The Plugin API caps at 500 requests per 5-minute rolling window per secret. `search_payments` mitigates this by stopping as soon as it crosses the date floor or hits its result cap, but a long unbounded scan can still burn the budget. The `tebex_tool_error` log line surfaces 429s explicitly.
-- **One process per store.** Tebex secrets are per-server — to manage multiple Tebex stores, run one MCP instance per store with a distinct port/auth token.
+- **Security.** Tebex secrets travel in the `X-Tebex-Secret` header. The server does not log them and does not persist them. **TLS in front is non-negotiable** unless the listener is bound to loopback or a private network (Tailscale, WireGuard). `MCP_AUTH_TOKEN` gates access at the bearer layer. `.env` is in `.gitignore` — keep it that way.
+- **Rate limit.** The Plugin API caps at 500 requests per 5-minute rolling window per secret. With multi-store usage that quota is naturally per-store. `search_payments` mitigates burn by stopping as soon as it crosses the date floor or hits its result cap, but a long unbounded scan can still exhaust the budget. The `tebex_tool_error` log line surfaces 429s explicitly.
+- **One process for many stores.** A single instance handles any number of stores concurrently — secrets are scoped per-request via a `ContextVar`, no global state.
 - **Graceful shutdown.** `SIGTERM` / `SIGINT` closes the httpx client and FastMCP session manager, then exits. Uvicorn's 10-second graceful-shutdown timeout forces exit if anything hangs.
 
 ## License

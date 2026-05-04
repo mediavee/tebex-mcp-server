@@ -17,7 +17,7 @@ from starlette.routing import Mount
 
 from tebex_mcp import __version__
 from tebex_mcp.auth import bearer_auth
-from tebex_mcp.client import TebexClient
+from tebex_mcp.client import TebexClient, current_secret
 from tebex_mcp.config import Settings, load_settings
 from tebex_mcp.context import ToolContext
 from tebex_mcp.logging import configure_logging, get_logger
@@ -68,6 +68,7 @@ def build_asgi_app(settings: Settings) -> Starlette:
                 tebex_base=client.BASE_URL,
                 log_level=settings.log_level,
                 log_json=settings.log_json,
+                secret_source="per_request_header",
             )
             try:
                 yield
@@ -84,7 +85,7 @@ def build_asgi_app(settings: Settings) -> Starlette:
 
 
 class _AuthMiddleware(BaseHTTPMiddleware):
-    """Bearer-token gate for everything except /healthz."""
+    """Bearer-token + per-request Tebex secret gate. Skipped on /healthz."""
 
     def __init__(self, app, expected_token: str) -> None:
         super().__init__(app)
@@ -93,7 +94,32 @@ class _AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.url.path == "/healthz":
             return await call_next(request)
-        return await self._guard(request, call_next)
+
+        async def with_secret(req: Request) -> Response:
+            secret = req.headers.get("x-tebex-secret", "").strip()
+            if not secret:
+                return JSONResponse(
+                    {
+                        "jsonrpc": "2.0",
+                        "error": {
+                            "code": -32602,
+                            "message": (
+                                "Missing X-Tebex-Secret header. Configure your MCP "
+                                "client to send the per-store Tebex Plugin API "
+                                "secret on every request."
+                            ),
+                        },
+                        "id": None,
+                    },
+                    status_code=400,
+                )
+            token = current_secret.set(secret)
+            try:
+                return await call_next(req)
+            finally:
+                current_secret.reset(token)
+
+        return await self._guard(request, with_secret)
 
 
 async def run() -> None:
