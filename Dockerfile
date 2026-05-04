@@ -1,18 +1,39 @@
-FROM node:22-slim AS build
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY tsconfig.json ./
-COPY src/ src/
-RUN npm run build
+# syntax=docker/dockerfile:1.7
+FROM python:3.12-slim AS build
 
-FROM node:22-slim
+# uv: fast deterministic dependency resolution and venv management.
+COPY --from=ghcr.io/astral-sh/uv:0.5.7 /uv /usr/local/bin/uv
+
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_PYTHON_DOWNLOADS=never
+
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci --omit=dev
-COPY --from=build /app/dist dist/
+
+# Install dependencies from the lockfile in a separate layer for cache reuse.
+COPY pyproject.toml uv.lock* ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-install-project --no-dev
+
+# Install the project itself.
+COPY src ./src
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev
+
+FROM python:3.12-slim AS runtime
+
+WORKDIR /app
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# Non-root user.
+RUN groupadd --system app && useradd --system --gid app --home /app app
+COPY --from=build --chown=app:app /app/.venv /app/.venv
+COPY --from=build --chown=app:app /app/src /app/src
+COPY --chown=app:app pyproject.toml ./
+
+USER app
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD node -e "fetch('http://localhost:3000/healthz').then(r=>{if(!r.ok)throw r.status}).catch(()=>process.exit(1))"
-USER node
-CMD ["node", "dist/index.js"]
+
+CMD ["python", "-m", "tebex_mcp"]
