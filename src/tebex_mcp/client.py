@@ -389,3 +389,31 @@ class TebexClient:
             f"/player/{player_id}/packages",
             query={"package": package_id},
         )
+
+    # ────────────────────────── recurring payments ─────────────────────────
+
+    async def list_recurring_payments(self) -> Any:
+        return await self._request("GET", "/recurring-payments")
+
+    async def get_recurring_payment(self, reference: str) -> Any:
+        return await self._request("GET", f"/recurring-payments/{_q(reference)}")
+
+    async def update_recurring_payment(
+        self, reference: str, payload: dict[str, Any]
+    ) -> Any:
+        return await self._request(
+            "PUT",
+            f"/recurring-payments/{_q(reference)}",
+            body={k: v for k, v in payload.items() if v is not None},
+        )
+
+    async def cancel_recurring_payment(self, reference: str) -> Any:
+        return await self.update_recurring_payment(reference, {"status": "Cancelled"})
+
+    async def pause_recurring_payment(self, reference: str, months: int) -> Any:
+        return await self.update_recurring_payment(
+            reference, {"status": "Paused", "paused_months": months}
+        )
+
+    async def reactivate_recurring_payment(self, reference: str) -> Any:
+        return await self.update_recurring_payment(reference, {"status": "Active"})
