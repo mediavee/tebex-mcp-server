@@ -171,6 +171,10 @@ Thirty-one MCP tools grouped into ten categories. See [`SKILL.md`](./SKILL.md) f
 
 `lookup_player`, `get_player_packages`, `get_command_queue`, `get_offline_commands`, `get_online_commands`, `delete_commands`
 
+### Field selection
+
+The Tebex Plugin API does not support server-side field selection, so read tools return the full upstream payload. Client-side filtering is intentionally not implemented — the wire cost upstream would not change, and the marginal context savings are not worth the schema-tracking complexity. If a specific tool's payload becomes a problem in practice, narrow it at the call site.
+
 ## Configuration
 
 All configuration is via environment variables (loaded from process env, then `.env`).
