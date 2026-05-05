@@ -8,13 +8,14 @@ from fastmcp import FastMCP
 from pydantic import Field
 
 from tebex_mcp.context import ToolContext
-from tebex_mcp.tools._common import map_tebex_errors
+from tebex_mcp.tools._common import DESTRUCTIVE, READ_ONLY, map_tebex_errors
 
 
 def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="list_bans",
         description="List all bans with id, time, ip, email, reason, and user info.",
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def list_bans() -> Any:
@@ -23,6 +24,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="create_ban",
         description="Ban a user or IP from the store.",
+        annotations=DESTRUCTIVE,
     )
     @map_tebex_errors
     async def create_ban(

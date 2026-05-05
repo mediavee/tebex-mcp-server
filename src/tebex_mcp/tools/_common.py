@@ -50,3 +50,41 @@ def map_tebex_errors[**P, R](
 def ok(**fields: Any) -> dict[str, Any]:
     """Tiny helper to build the standard ``{ok: true, ...}`` payload."""
     return {"ok": True, **fields}
+
+
+# ──────────────────────────── tool annotation presets ──────────────────────────
+#
+# MCP `tool.annotations` are hints clients (Claude Code/Desktop) use to colour
+# tools in the UI and decide whether to prompt for confirmation before calling.
+# All our tools talk to a remote Tebex API, hence ``openWorldHint=True`` on every
+# preset. The remaining axes split tools into:
+#   READ_ONLY    — pure read, idempotent, safe.
+#   IDEMPOTENT   — write but re-running the same call yields the same state.
+#   DESTRUCTIVE  — irreversible or hard to undo.
+#   WRITE        — non-idempotent write (each call has a side effect, e.g.
+#                  appending a note, creating a new resource).
+
+READ_ONLY: dict[str, Any] = {
+    "readOnlyHint": True,
+    "idempotentHint": True,
+    "openWorldHint": True,
+}
+
+IDEMPOTENT: dict[str, Any] = {
+    "readOnlyHint": False,
+    "idempotentHint": True,
+    "openWorldHint": True,
+}
+
+DESTRUCTIVE: dict[str, Any] = {
+    "readOnlyHint": False,
+    "destructiveHint": True,
+    "idempotentHint": True,
+    "openWorldHint": True,
+}
+
+WRITE: dict[str, Any] = {
+    "readOnlyHint": False,
+    "idempotentHint": False,
+    "openWorldHint": True,
+}

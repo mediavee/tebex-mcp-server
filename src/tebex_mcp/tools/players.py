@@ -8,7 +8,7 @@ from fastmcp import FastMCP
 from pydantic import Field
 
 from tebex_mcp.context import ToolContext
-from tebex_mcp.tools._common import map_tebex_errors
+from tebex_mcp.tools._common import READ_ONLY, map_tebex_errors
 
 
 def register(mcp: FastMCP, ctx: ToolContext) -> None:
@@ -18,6 +18,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
             "Look up a player by username or UUID: bans, chargeback rate, payments, "
             "purchase totals. Ultimate plan only."
         ),
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def lookup_player(
@@ -28,6 +29,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="get_player_packages",
         description="List active packages owned by a player. Optionally filter by package ID.",
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def get_player_packages(

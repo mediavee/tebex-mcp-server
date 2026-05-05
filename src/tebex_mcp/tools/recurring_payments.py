@@ -8,7 +8,13 @@ from fastmcp import FastMCP
 from pydantic import Field
 
 from tebex_mcp.context import ToolContext
-from tebex_mcp.tools._common import map_tebex_errors, ok
+from tebex_mcp.tools._common import (
+    DESTRUCTIVE,
+    IDEMPOTENT,
+    READ_ONLY,
+    map_tebex_errors,
+    ok,
+)
 
 
 def register(mcp: FastMCP, ctx: ToolContext) -> None:
@@ -18,6 +24,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
             "List all recurring payments (subscriptions) on the store: "
             "reference, status, amount, interval, next due date, customer."
         ),
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def list_recurring_payments() -> Any:
@@ -26,6 +33,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="get_recurring_payment",
         description="Get details of a single recurring payment by its reference.",
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def get_recurring_payment(
@@ -46,6 +54,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
             "their existing access stays until the current period ends. "
             "Cannot be undone — to restart, the customer must subscribe again."
         ),
+        annotations=DESTRUCTIVE,
     )
     @map_tebex_errors
     async def cancel_recurring_payment(
@@ -62,6 +71,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
             "Pause a recurring payment for a number of months. Billing resumes "
             "automatically afterwards. Use to honour temporary stop requests."
         ),
+        annotations=IDEMPOTENT,
     )
     @map_tebex_errors
     async def pause_recurring_payment(
@@ -82,6 +92,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
             "Reactivate a paused recurring payment immediately, before the "
             "pause window ends."
         ),
+        annotations=IDEMPOTENT,
     )
     @map_tebex_errors
     async def reactivate_recurring_payment(

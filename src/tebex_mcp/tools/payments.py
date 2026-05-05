@@ -11,7 +11,13 @@ from pydantic import Field
 
 from tebex_mcp.client import PaymentEntry, PaymentStatus
 from tebex_mcp.context import ToolContext
-from tebex_mcp.tools._common import map_tebex_errors, ok
+from tebex_mcp.tools._common import (
+    DESTRUCTIVE,
+    READ_ONLY,
+    WRITE,
+    map_tebex_errors,
+    ok,
+)
 
 
 def _parse_user_iso(value: str, field: str) -> datetime:
@@ -48,6 +54,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
             "Paginates automatically with early-exit on date boundary. Check `has_more` "
             "for more results."
         ),
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def search_payments(
@@ -181,6 +188,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="list_payments",
         description="Get the latest payments (up to 100): transaction id, amount, date, player, packages.",
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def list_payments(
@@ -194,6 +202,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="list_payments_paged",
         description="Get payments with pagination (25 per page).",
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def list_payments_paged(
@@ -206,6 +215,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="get_payment",
         description="Get full payment details: player, packages, amount, status, date, notes.",
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def get_payment(
@@ -218,6 +228,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="get_payment_fields",
         description="Get required `options` fields for create_payment on a given package.",
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def get_payment_fields(
@@ -228,6 +239,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="create_payment",
         description="Create a manual payment — assign packages to a player without checkout.",
+        annotations=WRITE,
     )
     @map_tebex_errors
     async def create_payment(
@@ -254,7 +266,12 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
 
     @mcp.tool(
         name="update_payment",
-        description="Update a payment's username or status (complete/chargeback/refund).",
+        description=(
+            "Update a payment's username or status. Setting status to "
+            "'refund' or 'chargeback' triggers package revocation and is "
+            "effectively irreversible — confirm with the user first."
+        ),
+        annotations=DESTRUCTIVE,
     )
     @map_tebex_errors
     async def update_payment(
@@ -276,6 +293,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="add_payment_note",
         description="Add a note to a payment.",
+        annotations=WRITE,
     )
     @map_tebex_errors
     async def add_payment_note(
@@ -287,6 +305,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="create_checkout",
         description="Generate a checkout URL for a player and package. Returns URL and expiration.",
+        annotations=WRITE,
     )
     @map_tebex_errors
     async def create_checkout(

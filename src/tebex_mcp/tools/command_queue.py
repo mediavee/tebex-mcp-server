@@ -8,13 +8,14 @@ from fastmcp import FastMCP
 from pydantic import Field
 
 from tebex_mcp.context import ToolContext
-from tebex_mcp.tools._common import map_tebex_errors, ok
+from tebex_mcp.tools._common import IDEMPOTENT, READ_ONLY, map_tebex_errors, ok
 
 
 def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="get_command_queue",
         description="Get due player command queue: players with pending commands, next check interval.",
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def get_command_queue() -> Any:
@@ -23,6 +24,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="get_offline_commands",
         description="Get commands executable without the player online: id, string, payment, package, conditions.",
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def get_offline_commands() -> Any:
@@ -31,6 +33,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="get_online_commands",
         description="Get pending commands for a specific player (requires player online).",
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def get_online_commands(
@@ -41,6 +44,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="delete_commands",
         description="Remove executed commands from the queue.",
+        annotations=IDEMPOTENT,
     )
     @map_tebex_errors
     async def delete_commands(

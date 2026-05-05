@@ -8,13 +8,20 @@ from fastmcp import FastMCP
 from pydantic import Field
 
 from tebex_mcp.context import ToolContext
-from tebex_mcp.tools._common import map_tebex_errors, ok
+from tebex_mcp.tools._common import (
+    DESTRUCTIVE,
+    READ_ONLY,
+    WRITE,
+    map_tebex_errors,
+    ok,
+)
 
 
 def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="list_coupons",
         description="List all coupons with code, discount, scope, expiration, and usage stats. Paginated.",
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def list_coupons() -> Any:
@@ -23,6 +30,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="get_coupon",
         description="Get coupon details by ID.",
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def get_coupon(
@@ -33,6 +41,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="create_coupon",
         description="Create a coupon: code, discount type, scope, limits, date range.",
+        annotations=WRITE,
     )
     @map_tebex_errors
     async def create_coupon(
@@ -121,6 +130,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="delete_coupon",
         description="Delete a coupon. The code becomes unredeemable.",
+        annotations=DESTRUCTIVE,
     )
     @map_tebex_errors
     async def delete_coupon(

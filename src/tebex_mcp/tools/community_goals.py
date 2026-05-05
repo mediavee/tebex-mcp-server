@@ -8,13 +8,14 @@ from fastmcp import FastMCP
 from pydantic import Field
 
 from tebex_mcp.context import ToolContext
-from tebex_mcp.tools._common import map_tebex_errors
+from tebex_mcp.tools._common import READ_ONLY, map_tebex_errors
 
 
 def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="list_community_goals",
         description="List all community goals with target, progress, status, and times achieved.",
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def list_community_goals() -> Any:
@@ -23,6 +24,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="get_community_goal",
         description="Get community goal details by ID.",
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def get_community_goal(

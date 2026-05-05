@@ -8,13 +8,14 @@ from fastmcp import FastMCP
 from pydantic import Field
 
 from tebex_mcp.context import ToolContext
-from tebex_mcp.tools._common import map_tebex_errors, ok
+from tebex_mcp.tools._common import IDEMPOTENT, READ_ONLY, map_tebex_errors, ok
 
 
 def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="list_categories",
         description="List all categories with nested package summaries.",
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def list_categories() -> Any:
@@ -23,6 +24,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="list_packages",
         description="List all packages with id, name, price, type, category, and sale info.",
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def list_packages() -> Any:
@@ -31,6 +33,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="get_package",
         description="Get full package details: name, price, description, image, type, category.",
+        annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def get_package(
@@ -41,6 +44,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="update_package",
         description="Update a package: toggle disabled, rename, or change price. Only provided fields are changed.",
+        annotations=IDEMPOTENT,
     )
     @map_tebex_errors
     async def update_package(
