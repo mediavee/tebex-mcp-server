@@ -11,6 +11,10 @@ class Settings(BaseSettings):
 
     Values are loaded from process environment, then ``.env`` (if present).
     Field names use snake_case; env vars use SCREAMING_SNAKE_CASE.
+
+    The Tebex secret is **not** loaded here — it is provided per-request via
+    the ``X-Tebex-Secret`` HTTP header so a single instance can serve any
+    number of stores.
     """
 
     model_config = SettingsConfigDict(
@@ -20,9 +24,10 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    tebex_secret: SecretStr = Field(
-        ..., description="Tebex Plugin API secret (per-store)."
-    )
+    mcp_auth_token: SecretStr = Field(..., description="Bearer token for HTTP clients.")
+
+    http_host: str = Field("0.0.0.0", description="HTTP bind host.")
+    http_port: int = Field(3000, ge=1, le=65535, description="HTTP bind port.")
 
     log_level: str = Field("INFO", description="Logger level (DEBUG, INFO, WARNING, ERROR).")
     log_json: bool = Field(False, description="Emit logs as JSON.")
