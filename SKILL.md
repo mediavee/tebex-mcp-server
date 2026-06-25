@@ -21,49 +21,9 @@ Triggers (any language):
 
 If the user is asking about **in-game delivery mechanics** (the plugin running on the game server, command execution on the Minecraft side), this skill can only confirm what Tebex sent — anything past `get_command_queue` belongs to the game server's tooling.
 
-## Tool inventory
+## Tools
 
-### Information & catalog
-- `get_store_info` — store metadata, currency, game type, online mode.
-- `list_categories` — categories with nested package summaries.
-- `list_packages`, `get_package` — package catalog and details.
-- `update_package` — toggle disabled, rename, change price (partial update).
-
-### Payments
-- `search_payments` — **the one to use most of the time**. Filters: `username` (substring, case-insensitive), `from`/`to` (ISO date), `package_id`, `status`, `min_amount`/`max_amount`. Auto-paginates with early-exit when payments cross the lower date bound. Returns `{results, meta:{matched, scanned, pages_scanned, has_more}}`.
-- `list_payments` — newest payments capped at 100. Use only when you genuinely want "the latest activity, no filter".
-- `list_payments_paged` — raw 25-per-page pagination. Rarely needed; `search_payments` is almost always better.
-- `get_payment` — full details for a `tbx-…` transaction id.
-- `get_payment_fields` — required `options` keys for `create_payment` on a given package.
-- `create_payment` — manual payment (assign packages without going through checkout).
-- `update_payment` — change `username` or `status` (`complete` / `chargeback` / `refund`).
-- `add_payment_note` — append an internal note to a payment.
-- `create_checkout` — generate a hosted checkout URL for a player + package.
-
-> Subscriptions (recurring payments) are **not** part of the Tebex Plugin API — they live on the separate Checkout API (`checkout.tebex.io/api`, Basic auth) and are intentionally out of scope here.
-
-### Gift cards
-- `list_gift_cards`, `get_gift_card`, `lookup_gift_card` (by customer-facing code), `create_gift_card`, `topup_gift_card`, `void_gift_card`.
-
-### Coupons
-- `list_coupons`, `get_coupon`, `create_coupon`, `delete_coupon`.
-
-### Bans
-- `list_bans`, `create_ban` (user, IP, or both).
-
-### Sales
-- `list_sales` — active sales with scope and dates.
-
-### Community goals
-- `list_community_goals`, `get_community_goal`.
-
-### Players & command queue
-- `lookup_player` — username or UUID → bans, chargeback rate, payments, totals (Ultimate plan).
-- `get_player_packages` — active packages owned by a Tebex player id (optionally filtered by package).
-- `get_command_queue` — players with pending commands and the next-check interval.
-- `get_offline_commands` — commands runnable without the player online.
-- `get_online_commands` — pending commands for one player (requires player online).
-- `delete_commands` — bulk-remove command ids from the queue (after they ran).
+Prefer `search_payments` for payment lookups (it filters and auto-paginates); `list_payments` / `list_payments_paged` are rarely needed. Subscriptions (recurring payments) aren't in the Plugin API — they're on the Checkout API — so there's no tool for them here.
 
 ## The one thing that trips everyone up
 
