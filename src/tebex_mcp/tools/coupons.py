@@ -20,12 +20,20 @@ from tebex_mcp.tools._common import (
 def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="list_coupons",
-        description="List all coupons with code, discount, scope, expiration, and usage stats. Paginated.",
+        description=(
+            "List coupons with code, discount, scope, expiration, and usage stats. "
+            "Paginated — the response `pagination` carries `currentPage`/`lastPage` "
+            "and a `next` URL; pass `page` to fetch further pages."
+        ),
         annotations=READ_ONLY,
     )
     @map_tebex_errors
-    async def list_coupons() -> Any:
-        return await ctx.client.list_coupons()
+    async def list_coupons(
+        page: Annotated[
+            int | None, Field(description="Page number (1-indexed, default: 1)", ge=1)
+        ] = None,
+    ) -> Any:
+        return await ctx.client.list_coupons(page)
 
     @mcp.tool(
         name="get_coupon",

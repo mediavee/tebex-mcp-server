@@ -342,8 +342,8 @@ class TebexClient:
 
     # ─────────────────────────────── coupons ───────────────────────────────
 
-    async def list_coupons(self) -> Any:
-        return await self._request("GET", "/coupons")
+    async def list_coupons(self, page: int | None = None) -> Any:
+        return await self._request("GET", "/coupons", query={"page": page})
 
     async def get_coupon(self, coupon_id: int) -> Any:
         return await self._request("GET", f"/coupons/{coupon_id}")
