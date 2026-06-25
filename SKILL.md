@@ -23,7 +23,7 @@ If the user is asking about **in-game delivery mechanics** (the plugin running o
 
 ## Tools
 
-Prefer `search_payments` for payment lookups (it filters and auto-paginates); `list_payments` / `list_payments_paged` are rarely needed. For a package's storefront description and tax-inclusive pricing use `get_package_storefront` (Headless API) — `get_package` is operator-side config only. Subscriptions (recurring payments) aren't in the Plugin API — they're on the Checkout API — so there's no tool for them here.
+Prefer `search_payments` for payment lookups (it filters and auto-paginates); `list_payments` / `list_payments_paged` are rarely needed. For a package's storefront description and tax-inclusive pricing, call `get_package(..., include_description=true)` (it adds a `storefront` block via the Headless API); the default `get_package` is operator-side config only. Subscriptions (recurring payments) aren't in the Plugin API — they're on the Checkout API — so there's no tool for them here.
 
 ## The one thing that trips everyone up
 

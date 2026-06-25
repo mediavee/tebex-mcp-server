@@ -8,6 +8,7 @@ from fastmcp import FastMCP
 from pydantic import Field
 
 from tebex_mcp import normalize
+from tebex_mcp.client import TebexError
 from tebex_mcp.context import ToolContext
 from tebex_mcp.tools._common import IDEMPOTENT, READ_ONLY, map_tebex_errors, ok
 
@@ -35,32 +36,30 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
         name="get_package",
         description=(
             "Get a package's full config: price, type, category, expiry, limits, "
-            "GUI item, server/requirement rules. The storefront description text is "
-            "not exposed by the Plugin API (use the Headless API for that)."
+            "GUI item, server/requirement rules. Set include_description to also "
+            "fetch the storefront view (description, tax-inclusive pricing, media, "
+            "options) under a `storefront` key — one extra Headless API call."
         ),
         annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def get_package(
         package_id: Annotated[int, Field(description="Package ID", ge=1)],
+        include_description: Annotated[
+            bool,
+            Field(description="Also fetch the storefront description/pricing/media"),
+        ] = False,
     ) -> Any:
-        return await ctx.client.get_package(package_id)
-
-    @mcp.tool(
-        name="get_package_storefront",
-        description=(
-            "Customer-facing package view (Headless API): description, price incl. "
-            "tax, media, purchase options. Complements get_package (operator config)."
-        ),
-        annotations=READ_ONLY,
-    )
-    @map_tebex_errors
-    async def get_package_storefront(
-        package_id: Annotated[int, Field(description="Package ID", ge=1)],
-    ) -> dict[str, Any]:
-        return normalize.package_storefront(
-            await ctx.client.get_package_storefront(package_id)
-        )
+        pkg = await ctx.client.get_package(package_id)
+        if include_description and isinstance(pkg, dict):
+            try:
+                storefront = normalize.package_storefront(
+                    await ctx.client.get_package_storefront(package_id)
+                )
+            except TebexError:
+                storefront = {"error": "not available on the storefront"}
+            pkg = {**pkg, "storefront": storefront}
+        return pkg
 
     @mcp.tool(
         name="update_package",
