@@ -231,7 +231,7 @@ class TebexClient:
         return await self._request("GET", "/packages")
 
     async def get_package(self, package_id: int) -> Any:
-        return await self._request("GET", f"/packages/{package_id}")
+        return await self._request("GET", f"/package/{package_id}")
 
     async def update_package(
         self,
