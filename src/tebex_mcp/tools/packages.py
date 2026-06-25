@@ -23,7 +23,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
 
     @mcp.tool(
         name="list_packages",
-        description="List all packages with id, name, price, type, category, and sale info.",
+        description="List all packages: id, name, price, type, category, expiry, limits, disabled.",
         annotations=READ_ONLY,
     )
     @map_tebex_errors
@@ -32,7 +32,11 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
 
     @mcp.tool(
         name="get_package",
-        description="Get full package details: name, price, description, image, type, category.",
+        description=(
+            "Get a package's full config: price, type, category, expiry, limits, "
+            "GUI item, server/requirement rules. The storefront description text is "
+            "not exposed by the Plugin API (use the Headless API for that)."
+        ),
         annotations=READ_ONLY,
     )
     @map_tebex_errors

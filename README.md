@@ -125,8 +125,8 @@ Thirty-five MCP tools grouped into nine categories. See [`SKILL.md`](./SKILL.md)
 | Tool | Description |
 |---|---|
 | `list_categories` | All categories with nested package summaries |
-| `list_packages` | All packages with id, name, price, type, category, sale info |
-| `get_package` | Full package details (description, image, …) |
+| `list_packages` | All packages: id, name, price, type, category, expiry, limits |
+| `get_package` | Full package config (price, type, category, expiry, limits, GUI item); no storefront description — that's Headless-API only |
 | `update_package` | Toggle disabled, rename, or change price |
 
 ### Payments
