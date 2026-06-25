@@ -1,6 +1,6 @@
 # tebex-mcp-server
 
-An [MCP](https://modelcontextprotocol.io) server that lets AI assistants operate a [Tebex](https://www.tebex.io) store via the [Plugin API](https://docs.tebex.io/plugin): packages, payments, gift cards, coupons, bans, sales, community goals, command queue, and player lookups — all behind one bearer-authenticated HTTP endpoint.
+An [MCP](https://modelcontextprotocol.io) server that lets AI assistants operate a [Tebex](https://www.tebex.io) store via the [Plugin API](https://docs.tebex.io/plugin): packages, payments, gift cards, coupons, bans, sales, community goals, command queue, and player lookups — plus read-only storefront views (package descriptions, pricing) via the Headless API — all behind one bearer-authenticated HTTP endpoint.
 
 Built on **[FastMCP 3.x](https://gofastmcp.com)** + Python 3.12 + asyncio.
 
@@ -18,7 +18,7 @@ The Tebex Plugin API is tedious from a chat assistant: 30+ endpoints, opaque `/p
 ## Features
 
 - **Information** — store metadata, currency, game type
-- **Packages** — list categories, list/get packages, update price/name/disabled flag
+- **Packages** — list categories, list/get packages, update price/name/disabled flag, customer-facing storefront view (Headless API)
 - **Payments** — list (paged or capped), search with multi-criteria filtering and early-exit pagination, get, create manual payments, update status, add notes
 - **Checkout** — generate signed checkout URLs
 - **Gift cards** — full CRUD plus topup, void, and customer-code lookup
@@ -112,7 +112,7 @@ To switch stores from Claude Code at runtime, use `claude mcp` to enable/disable
 
 ## Tools
 
-Thirty-five MCP tools grouped into nine categories. See [`SKILL.md`](./SKILL.md) for composition patterns and methodology.
+Thirty-six MCP tools grouped into nine categories. See [`SKILL.md`](./SKILL.md) for composition patterns and methodology.
 
 ### Information
 
@@ -126,7 +126,8 @@ Thirty-five MCP tools grouped into nine categories. See [`SKILL.md`](./SKILL.md)
 |---|---|
 | `list_categories` | All categories with nested package summaries |
 | `list_packages` | All packages: id, name, price, type, category, expiry, limits |
-| `get_package` | Full package config (price, type, category, expiry, limits, GUI item); no storefront description — that's Headless-API only |
+| `get_package` | Full package config (price, type, category, expiry, limits, GUI item) |
+| `get_package_storefront` | Customer-facing view via the Headless API: description, price incl. tax, media, purchase options |
 | `update_package` | Toggle disabled, rename, or change price |
 
 ### Payments

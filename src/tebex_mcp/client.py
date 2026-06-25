@@ -9,6 +9,7 @@ Rate limit: 500 requests per 5-minute rolling window.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 from contextvars import ContextVar
 from typing import Any, Literal
 from urllib.parse import quote
@@ -52,6 +53,7 @@ class TebexClient:
     """Thin async wrapper over the Tebex Plugin API (https://plugin.tebex.io)."""
 
     BASE_URL = "https://plugin.tebex.io"
+    HEADLESS_BASE = "https://headless.tebex.io/api"
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
@@ -61,6 +63,10 @@ class TebexClient:
             timeout=httpx.Timeout(30.0, connect=10.0),
             transport=httpx.AsyncHTTPTransport(retries=2),
         )
+        # Public storefront token per secret (sha256(secret) -> token), resolved
+        # lazily from /information. The server is multi-tenant, so this can't be
+        # resolved once at startup — it depends on the per-request secret.
+        self._public_tokens: dict[str, str] = {}
 
     async def aclose(self) -> None:
         await self._http.aclose()
@@ -75,16 +81,19 @@ class TebexClient:
         query: dict[str, Any] | None = None,
         body: Any | None = None,
         retries: int = 3,
+        send_secret: bool = True,
     ) -> Any:
         params = {k: v for k, v in (query or {}).items() if v is not None}
 
-        secret = current_secret.get()
-        if not secret:
-            raise MissingSecretError(
-                "No Tebex secret in request context — the HTTP middleware should "
-                "have rejected this request earlier."
-            )
-        request_headers = {"X-Tebex-Secret": secret}
+        request_headers: dict[str, str] = {}
+        if send_secret:
+            secret = current_secret.get()
+            if not secret:
+                raise MissingSecretError(
+                    "No Tebex secret in request context — the HTTP middleware should "
+                    "have rejected this request earlier."
+                )
+            request_headers["X-Tebex-Secret"] = secret
 
         last_exc: Exception | None = None
         backoff = 0.4
@@ -212,6 +221,34 @@ class TebexClient:
             "PUT",
             f"/package/{package_id}",
             body={k: v for k, v in body.items() if v is not None},
+        )
+
+    # ─────────────────────── storefront (Headless API) ─────────────────────
+
+    async def _public_token(self) -> str:
+        """Resolve and cache the store's public storefront token for the current
+        secret. Needed for the Headless API, which is keyed by public token."""
+        secret = current_secret.get()
+        if not secret:
+            raise MissingSecretError("No Tebex secret in request context.")
+        key = hashlib.sha256(secret.encode()).hexdigest()
+        token = self._public_tokens.get(key)
+        if token is None:
+            info = await self.get_information()
+            token = ((info or {}).get("account") or {}).get("public_token")
+            if not token:
+                raise TebexError("Store information has no public_token.", 0, info)
+            self._public_tokens[key] = token
+        return token
+
+    async def get_package_storefront(self, package_id: int) -> Any:
+        token = await self._public_token()
+        # No X-Tebex-Secret: the Headless API is a different host, authenticated
+        # by the public token in the path.
+        return await self._request(
+            "GET",
+            f"{self.HEADLESS_BASE}/accounts/{_q(token)}/packages/{package_id}",
+            send_secret=False,
         )
 
     # ───────────────────────────── community goals ─────────────────────────

@@ -137,6 +137,31 @@ def paged_payments(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def package_storefront(raw: dict[str, Any]) -> dict[str, Any]:
+    """Curate the Headless API package (customer-facing view): description,
+    pricing incl. tax, media, purchase options."""
+    p = raw.get("data") if isinstance(raw.get("data"), dict) else raw
+    return _compact(
+        {
+            "id": p.get("id"),
+            "name": p.get("name"),
+            "slug": p.get("slug"),
+            "description": p.get("description"),
+            "type": p.get("type"),
+            "category": p.get("category"),
+            "base_price": _to_float(p.get("base_price")),
+            "sales_tax": _to_float(p.get("sales_tax")),
+            "total_price": _to_float(p.get("total_price")),
+            "currency": p.get("currency"),
+            "discount": _to_float(p.get("discount")),
+            "image": p.get("image"),
+            "media": p.get("media"),
+            "options": p.get("options"),
+            "expiration_date": p.get("expiration_date"),
+        }
+    )
+
+
 def _player_payment(raw: dict[str, Any]) -> dict[str, Any]:
     code = raw.get("status")
     return _compact(
