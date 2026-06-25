@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 from contextvars import ContextVar
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal
 from urllib.parse import quote
 
 import httpx
@@ -32,40 +32,6 @@ class MissingSecretError(RuntimeError):
 
 
 PaymentStatus = Literal["complete", "chargeback", "refund"]
-CouponEffectiveOn = Literal["package", "category", "cart"]
-CouponDiscountType = Literal["value", "percentage"]
-CouponBasketType = Literal["single", "subscription", "both"]
-
-
-class PaymentPlayer(TypedDict, total=False):
-    id: int
-    name: str
-    uuid: str
-
-
-class PaymentPackage(TypedDict, total=False):
-    id: int
-    name: str
-
-
-class PaymentEntry(TypedDict, total=False):
-    txn_id: str
-    date: str
-    price: str
-    currency: str
-    status: str
-    player: PaymentPlayer
-    packages: list[PaymentPackage]
-
-
-class PaymentPagination(TypedDict):
-    current_page: int
-    last_page: int
-
-
-class PagedPaymentsResponse(TypedDict):
-    pagination: PaymentPagination
-    data: list[PaymentEntry]
 
 
 def _q(value: str) -> str:
@@ -261,7 +227,7 @@ class TebexClient:
     async def list_payments(self, limit: int | None = None) -> Any:
         return await self._request("GET", "/payments", query={"limit": limit})
 
-    async def list_payments_paged(self, page: int | None = None) -> PagedPaymentsResponse:
+    async def list_payments_paged(self, page: int | None = None) -> dict[str, Any]:
         return await self._request(
             "GET", "/payments", query={"paged": 1, "page": page or 1}
         )
