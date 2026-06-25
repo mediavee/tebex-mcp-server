@@ -1,11 +1,8 @@
 """Map raw Tebex Plugin API payloads onto stable, consistent shapes.
 
-The Plugin API is inconsistent across endpoints: payment amounts are strings on
-some routes and numbers on others; payment status is a capitalized string on
-the payments routes but a numeric code in the player-lookup payload; the
-`tbx-…` transaction id is exposed only by player lookup, never by the payment
-listings. These helpers coerce everything onto one shape so tools — and the LLM
-reading them — never have to special-case an endpoint.
+The API is inconsistent: amounts are strings or numbers; status is a string on
+the payment routes but a numeric code in player lookup; the `tbx-…` id appears
+only in player lookup. These helpers coerce everything onto one shape.
 """
 
 from __future__ import annotations
@@ -14,11 +11,8 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
-# Numeric status codes appear only in the player-lookup payload, and Tebex does
-# not document them. 1=complete is verified (status-1 payments sum exactly to
-# the reported purchase totals); 2/3 are inferred from the canonical
-# {Complete, Refund, Chargeback} string set. `status_code` is always preserved,
-# so the raw value is never lost when a code is unmapped.
+# Numeric status codes (player-lookup only) are undocumented. 1=complete is
+# verified against purchase totals; 2/3 inferred. status_code is kept raw.
 _PLAYER_PAYMENT_STATUS = {1: "complete", 2: "refund", 3: "chargeback"}
 
 

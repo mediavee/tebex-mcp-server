@@ -90,7 +90,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
 
         from_dt = _parse_user_iso(from_, "from") if from_ else None
         to_dt = _parse_user_iso(to, "to") if to else None
-        # Inclusive end-of-day to match the TS behavior.
+        # Inclusive end-of-day so `to` covers the whole day.
         if to_dt is not None:
             to_dt = to_dt.replace(hour=23, minute=59, second=59, microsecond=999_000)
 

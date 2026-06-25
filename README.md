@@ -2,18 +2,18 @@
 
 An [MCP](https://modelcontextprotocol.io) server that lets AI assistants operate a [Tebex](https://www.tebex.io) store via the [Plugin API](https://docs.tebex.io/plugin): packages, payments, gift cards, coupons, bans, sales, community goals, command queue, and player lookups — all behind one bearer-authenticated HTTP endpoint.
 
-Built on **[FastMCP 3.x](https://gofastmcp.com)** + Python 3.12 + asyncio. The skeleton (settings → client → tool registration → custom routes) is the same one used by [`ptero-mcp-server`](../ptero-mcp-server) and is intentionally portable to other REST-backed integrations.
+Built on **[FastMCP 3.x](https://gofastmcp.com)** + Python 3.12 + asyncio.
 
 ---
 
 ## Overview
 
-The Tebex Plugin API is a clean REST surface but it's tedious to use from a chat assistant: 30+ endpoints, opaque pagination on `/payments`, scoped IDs (player vs Tebex player vs txn vs hashid), and a 500-req / 5-min rate limit that punishes naive scraping. This server wraps it as **typed MCP tools** with a few opinionated helpers:
+The Tebex Plugin API is tedious from a chat assistant: 30+ endpoints, opaque `/payments` pagination, several distinct ID kinds, and a 500-req / 5-min rate limit. This server wraps it as **typed MCP tools** with a few helpers:
 
-- `search_payments` — paginates `/payments` automatically with **early-exit** on the date boundary (since payments are returned newest-first), filters by username substring, status, package id, and amount range, and reports `has_more` so the assistant can decide whether to keep digging.
-- Path components are URL-quoted before hitting the API — no path-traversal shenanigans from a creative LLM prompt.
-- A single long-lived `httpx.AsyncClient` with retry + exponential backoff on 5xx and network errors (3 attempts, 0.4s → 0.8s → 1.6s).
-- Structured logging via `structlog`: every Tebex request is logged at `DEBUG`, every 4xx/5xx at `WARNING` with the response body, every retry at `WARNING` with attempt counter and backoff.
+- `search_payments` — auto-paginates `/payments` with **early-exit** on the date boundary (payments are newest-first), filters by username, status, package, and amount, and reports `has_more`.
+- Path components are URL-quoted before the call.
+- One long-lived `httpx.AsyncClient` with retry + exponential backoff on 5xx/network errors.
+- Structured `structlog` logging: every request at `DEBUG`, 4xx/5xx and retries at `WARNING`.
 
 ## Features
 
@@ -241,17 +241,6 @@ src/tebex_mcp/
     ├── players.py
     └── command_queue.py
 ```
-
-## Reusing this skeleton
-
-Same template as `ptero-mcp-server`. To start a new MCP service from this layout:
-
-1. Replace `client.py` with your upstream API wrapper (httpx async, retry-aware).
-2. Add a tool module per logical domain in `tools/` and register it in `tools/__init__.py`.
-3. Update `Settings` in `config.py` with the env vars you need; `pydantic-settings` validates them at startup.
-4. Add custom HTTP routes in `server.py` next to `/healthz`.
-
-Everything else — auth middleware, FastMCP lifespan, structured logging, Docker, healthcheck — is reusable as-is.
 
 ## Deployment notes
 

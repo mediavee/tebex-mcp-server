@@ -3,7 +3,7 @@
 Only methods used by the MCP tools are implemented. Auth is the per-server
 secret key sent in the ``X-Tebex-Secret`` header.
 
-Rate limit: 500 requests per 5-minute rolling window (per Tebex docs).
+Rate limit: 500 requests per 5-minute rolling window.
 """
 
 from __future__ import annotations
