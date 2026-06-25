@@ -52,17 +52,8 @@ def ok(**fields: Any) -> dict[str, Any]:
     return {"ok": True, **fields}
 
 
-# ──────────────────────────── tool annotation presets ──────────────────────────
-#
-# MCP `tool.annotations` are hints clients (Claude Code/Desktop) use to colour
-# tools in the UI and decide whether to prompt for confirmation before calling.
-# All our tools talk to a remote Tebex API, hence ``openWorldHint=True`` on every
-# preset. The remaining axes split tools into:
-#   READ_ONLY    — pure read, idempotent, safe.
-#   IDEMPOTENT   — write but re-running the same call yields the same state.
-#   DESTRUCTIVE  — irreversible or hard to undo.
-#   WRITE        — non-idempotent write (each call has a side effect, e.g.
-#                  appending a note, creating a new resource).
+# MCP tool annotation presets. Every tool hits a remote API, so openWorldHint is
+# always True; the rest split read / idempotent-write / destructive / write.
 
 READ_ONLY: dict[str, Any] = {
     "readOnlyHint": True,

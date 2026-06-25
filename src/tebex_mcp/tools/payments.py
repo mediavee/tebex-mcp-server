@@ -9,7 +9,8 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field
 
-from tebex_mcp.client import PaymentEntry, PaymentStatus
+from tebex_mcp import normalize
+from tebex_mcp.client import PaymentStatus
 from tebex_mcp.context import ToolContext
 from tebex_mcp.tools._common import (
     DESTRUCTIVE,
@@ -50,9 +51,9 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="search_payments",
         description=(
-            "Filter payments by username, date range, package, status, and/or amount. "
-            "Paginates automatically with early-exit on date boundary. Check `has_more` "
-            "for more results."
+            "Filter payments by username, date range, package, status, amount; "
+            "auto-paginates (early-exit on date). Results carry a numeric `id`, not a "
+            "`tbx-…` id — use lookup_player to act on one (get/update_payment)."
         ),
         annotations=READ_ONLY,
     )
@@ -60,42 +61,28 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     async def search_payments(
         username: Annotated[
             str | None,
-            Field(description="Filter by player username (case-insensitive partial match)"),
+            Field(description="Player username (case-insensitive substring)"),
         ] = None,
         from_: Annotated[
             str | None,
-            Field(
-                alias="from",
-                description="Only payments on or after this date (ISO 8601, e.g. 2026-04-01)",
-            ),
+            Field(alias="from", description="On/after this ISO date (e.g. 2026-04-01)"),
         ] = None,
         to: Annotated[
             str | None,
-            Field(description="Only payments on or before this date (ISO 8601, e.g. 2026-04-14)"),
+            Field(description="On/before this ISO date (e.g. 2026-04-14)"),
         ] = None,
-        package_id: Annotated[
-            int | None, Field(description="Filter by package ID", ge=1)
-        ] = None,
+        package_id: Annotated[int | None, Field(description="Package ID", ge=1)] = None,
         status: Annotated[
-            PaymentStatus | None, Field(description="Filter by payment status")
+            PaymentStatus | None, Field(description="Payment status")
         ] = None,
-        min_amount: Annotated[
-            float | None, Field(description="Minimum payment amount")
-        ] = None,
-        max_amount: Annotated[
-            float | None, Field(description="Maximum payment amount")
-        ] = None,
+        min_amount: Annotated[float | None, Field(description="Min amount")] = None,
+        max_amount: Annotated[float | None, Field(description="Max amount")] = None,
         limit: Annotated[
-            int | None,
-            Field(description="Max results to return (default: 25)", ge=1, le=100),
+            int | None, Field(description="Max results (default 25)", ge=1, le=100)
         ] = None,
         max_pages: Annotated[
             int | None,
-            Field(
-                description="Max pages to scan (default: 20, each page = 25 payments)",
-                ge=1,
-                le=50,
-            ),
+            Field(description="Max pages to scan (default 20, 25/page)", ge=1, le=50),
         ] = None,
     ) -> dict[str, Any]:
         max_results = limit or 25
@@ -103,12 +90,12 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
 
         from_dt = _parse_user_iso(from_, "from") if from_ else None
         to_dt = _parse_user_iso(to, "to") if to else None
-        # Inclusive end-of-day to match the TS behavior.
+        # Inclusive end-of-day so `to` covers the whole day.
         if to_dt is not None:
             to_dt = to_dt.replace(hour=23, minute=59, second=59, microsecond=999_000)
 
         username_lower = username.lower() if username else None
-        results: list[PaymentEntry] = []
+        results: list[dict[str, Any]] = []
         scanned = 0
         pages_scanned = 0
         hit_date_boundary = False
@@ -123,9 +110,10 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
                 reached_end = True
                 break
 
-            for payment in data:
+            for raw in data:
                 scanned += 1
-                payment_date = _try_parse_iso(payment.get("date"))
+                item = normalize.payment_summary(raw)
+                payment_date = _try_parse_iso(item.get("date"))
 
                 # Payments are sorted desc — once we cross the lower bound, stop.
                 # Skip date filtering on payments with unparseable dates rather
@@ -139,37 +127,33 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
                 elif from_dt is not None or to_dt is not None:
                     continue
 
-                player_name = (payment.get("player") or {}).get("name", "")
+                player_name = (item.get("player") or {}).get("name") or ""
                 if username_lower and username_lower not in player_name.lower():
                     continue
 
-                if status and payment.get("status") != status:
+                if status and item.get("status") != status:
                     continue
 
                 if package_id is not None:
-                    pkgs = payment.get("packages") or []
+                    pkgs = item.get("packages") or []
                     if not any(p.get("id") == package_id for p in pkgs):
                         continue
 
-                price_str = payment.get("price", "0")
-                try:
-                    amount = float(price_str)
-                except (TypeError, ValueError):
-                    amount = 0.0
+                amount = item.get("amount") or 0.0
                 if min_amount is not None and amount < min_amount:
                     continue
                 if max_amount is not None and amount > max_amount:
                     continue
 
-                results.append(payment)
+                results.append(item)
                 if len(results) >= max_results:
                     break
 
             if hit_date_boundary or len(results) >= max_results:
                 break
 
-            pagination = response.get("pagination", {})
-            if page >= pagination.get("last_page", page):
+            last_page = response.get("last_page")
+            if last_page is not None and page >= last_page:
                 reached_end = True
                 break
 
@@ -187,7 +171,10 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
 
     @mcp.tool(
         name="list_payments",
-        description="Get the latest payments (up to 100): transaction id, amount, date, player, packages.",
+        description=(
+            "Latest payments (≤100), lean (id, date, amount, currency, status, "
+            "player, packages). get_payment for full detail."
+        ),
         annotations=READ_ONLY,
     )
     @map_tebex_errors
@@ -196,12 +183,13 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
             int | None,
             Field(description="Max number of payments to return (default: 100)", ge=1, le=100),
         ] = None,
-    ) -> Any:
-        return await ctx.client.list_payments(limit)
+    ) -> list[dict[str, Any]]:
+        raw = await ctx.client.list_payments(limit)
+        return [normalize.payment_summary(p) for p in raw if isinstance(p, dict)]
 
     @mcp.tool(
         name="list_payments_paged",
-        description="Get payments with pagination (25 per page).",
+        description="Get payments with pagination (25 per page). Returns {data, pagination}.",
         annotations=READ_ONLY,
     )
     @map_tebex_errors
@@ -209,21 +197,24 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
         page: Annotated[
             int | None, Field(description="Page number (1-indexed, default: 1)", ge=1)
         ] = None,
-    ) -> Any:
-        return await ctx.client.list_payments_paged(page)
+    ) -> dict[str, Any]:
+        return normalize.paged_payments(await ctx.client.list_payments_paged(page))
 
     @mcp.tool(
         name="get_payment",
-        description="Get full payment details: player, packages, amount, status, date, notes.",
+        description=(
+            "Full payment detail by `tbx-…` transaction id (from lookup_player or a "
+            "webhook/email; the listings' numeric id is rejected here)."
+        ),
         annotations=READ_ONLY,
     )
     @map_tebex_errors
     async def get_payment(
         transaction_id: Annotated[
-            str, Field(description="Transaction ID (e.g. tbx-abc123)")
+            str, Field(description="`tbx-…` transaction id")
         ],
-    ) -> Any:
-        return await ctx.client.get_payment(transaction_id)
+    ) -> dict[str, Any]:
+        return normalize.payment(await ctx.client.get_payment(transaction_id))
 
     @mcp.tool(
         name="get_payment_fields",
@@ -244,20 +235,20 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @map_tebex_errors
     async def create_payment(
         ign: Annotated[
-            str, Field(description="In-game name (username) of the player receiving the packages")
+            str, Field(description="Player username (in-game name) receiving the packages")
         ],
         packages: Annotated[
             list[dict[str, Any]],
             Field(
                 description=(
-                    "Packages to assign. Each entry: "
-                    "{id: int, options: {field: str}}. Use get_payment_fields to discover options."
+                    "Packages to assign, each {id, options:{...}}. "
+                    "Use get_payment_fields for option keys."
                 ),
                 min_length=1,
             ),
         ],
-        price: Annotated[float, Field(description="Total price for this payment", ge=0)],
-        note: Annotated[str, Field(description="Internal note for this payment")],
+        price: Annotated[float, Field(description="Total price", ge=0)],
+        note: Annotated[str, Field(description="Internal note")],
     ) -> dict[str, Any]:
         await ctx.client.create_payment(
             ign=ign, packages=packages, price=price, note=note
@@ -267,15 +258,17 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="update_payment",
         description=(
-            "Update a payment's username or status. Setting status to "
-            "'refund' or 'chargeback' triggers package revocation and is "
-            "effectively irreversible — confirm with the user first."
+            "Update a payment's username or status by `tbx-…` transaction id. "
+            "'refund'/'chargeback' revokes packages and is effectively irreversible "
+            "— confirm first."
         ),
         annotations=DESTRUCTIVE,
     )
     @map_tebex_errors
     async def update_payment(
-        transaction_id: Annotated[str, Field(description="Transaction ID")],
+        transaction_id: Annotated[
+            str, Field(description="`tbx-…` id (via lookup_player or webhook)")
+        ],
         username: Annotated[str | None, Field(description="New username")] = None,
         status: Annotated[
             Literal["complete", "chargeback", "refund"] | None,
@@ -292,12 +285,14 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
 
     @mcp.tool(
         name="add_payment_note",
-        description="Add a note to a payment.",
+        description="Add a note to a payment by `tbx-…` transaction id.",
         annotations=WRITE,
     )
     @map_tebex_errors
     async def add_payment_note(
-        transaction_id: Annotated[str, Field(description="Transaction ID")],
+        transaction_id: Annotated[
+            str, Field(description="`tbx-…` id (via lookup_player or webhook)")
+        ],
         note: Annotated[str, Field(description="Note text to add")],
     ) -> Any:
         return await ctx.client.add_payment_note(transaction_id, note)

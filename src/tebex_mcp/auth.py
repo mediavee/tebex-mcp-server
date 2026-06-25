@@ -41,9 +41,8 @@ def _check(request: Request, expected: bytes) -> bool:
 
 
 def _unauthorized() -> JSONResponse:
-    # RFC 6750: declare the expected auth scheme explicitly so MCP clients
-    # (notably Claude Code) don't fall back to OAuth 2.1 discovery on a bare
-    # 401 and expose a virtual ``authenticate`` tool to the LLM.
+    # Declare the Bearer scheme so clients don't fall back to OAuth 2.1
+    # discovery on a bare 401 and expose a virtual auth tool to the LLM.
     return JSONResponse(
         {
             "jsonrpc": "2.0",

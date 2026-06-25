@@ -14,3 +14,6 @@ __pycache__/
 dist/
 build/
 .DS_Store
+
+# uv lockfile — not tracked (parity with main)
+uv.lock

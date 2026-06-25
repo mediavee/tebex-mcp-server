@@ -3,14 +3,14 @@
 Only methods used by the MCP tools are implemented. Auth is the per-server
 secret key sent in the ``X-Tebex-Secret`` header.
 
-Rate limit: 500 requests per 5-minute rolling window (per Tebex docs).
+Rate limit: 500 requests per 5-minute rolling window.
 """
 
 from __future__ import annotations
 
 import asyncio
 from contextvars import ContextVar
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal
 from urllib.parse import quote
 
 import httpx
@@ -32,40 +32,6 @@ class MissingSecretError(RuntimeError):
 
 
 PaymentStatus = Literal["complete", "chargeback", "refund"]
-CouponEffectiveOn = Literal["package", "category", "cart"]
-CouponDiscountType = Literal["value", "percentage"]
-CouponBasketType = Literal["single", "subscription", "both"]
-
-
-class PaymentPlayer(TypedDict, total=False):
-    id: int
-    name: str
-    uuid: str
-
-
-class PaymentPackage(TypedDict, total=False):
-    id: int
-    name: str
-
-
-class PaymentEntry(TypedDict, total=False):
-    txn_id: str
-    date: str
-    price: str
-    currency: str
-    status: str
-    player: PaymentPlayer
-    packages: list[PaymentPackage]
-
-
-class PaymentPagination(TypedDict):
-    current_page: int
-    last_page: int
-
-
-class PagedPaymentsResponse(TypedDict):
-    pagination: PaymentPagination
-    data: list[PaymentEntry]
 
 
 def _q(value: str) -> str:
@@ -231,7 +197,7 @@ class TebexClient:
         return await self._request("GET", "/packages")
 
     async def get_package(self, package_id: int) -> Any:
-        return await self._request("GET", f"/packages/{package_id}")
+        return await self._request("GET", f"/package/{package_id}")
 
     async def update_package(
         self,
@@ -261,7 +227,7 @@ class TebexClient:
     async def list_payments(self, limit: int | None = None) -> Any:
         return await self._request("GET", "/payments", query={"limit": limit})
 
-    async def list_payments_paged(self, page: int | None = None) -> PagedPaymentsResponse:
+    async def list_payments_paged(self, page: int | None = None) -> dict[str, Any]:
         return await self._request(
             "GET", "/payments", query={"paged": 1, "page": page or 1}
         )
@@ -342,8 +308,8 @@ class TebexClient:
 
     # ─────────────────────────────── coupons ───────────────────────────────
 
-    async def list_coupons(self) -> Any:
-        return await self._request("GET", "/coupons")
+    async def list_coupons(self, page: int | None = None) -> Any:
+        return await self._request("GET", "/coupons", query={"page": page})
 
     async def get_coupon(self, coupon_id: int) -> Any:
         return await self._request("GET", f"/coupons/{coupon_id}")
@@ -389,31 +355,3 @@ class TebexClient:
             f"/player/{player_id}/packages",
             query={"package": package_id},
         )
-
-    # ────────────────────────── recurring payments ─────────────────────────
-
-    async def list_recurring_payments(self) -> Any:
-        return await self._request("GET", "/recurring-payments")
-
-    async def get_recurring_payment(self, reference: str) -> Any:
-        return await self._request("GET", f"/recurring-payments/{_q(reference)}")
-
-    async def update_recurring_payment(
-        self, reference: str, payload: dict[str, Any]
-    ) -> Any:
-        return await self._request(
-            "PUT",
-            f"/recurring-payments/{_q(reference)}",
-            body={k: v for k, v in payload.items() if v is not None},
-        )
-
-    async def cancel_recurring_payment(self, reference: str) -> Any:
-        return await self.update_recurring_payment(reference, {"status": "Cancelled"})
-
-    async def pause_recurring_payment(self, reference: str, months: int) -> Any:
-        return await self.update_recurring_payment(
-            reference, {"status": "Paused", "paused_months": months}
-        )
-
-    async def reactivate_recurring_payment(self, reference: str) -> Any:
-        return await self.update_recurring_payment(reference, {"status": "Active"})

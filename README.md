@@ -1,19 +1,19 @@
 # tebex-mcp-server
 
-An [MCP](https://modelcontextprotocol.io) server that lets AI assistants operate a [Tebex](https://www.tebex.io) store via the [Plugin API](https://docs.tebex.io/developers/plugin-api/endpoints): packages, payments, gift cards, coupons, bans, sales, community goals, command queue, and player lookups — all behind one bearer-authenticated HTTP endpoint.
+An [MCP](https://modelcontextprotocol.io) server that lets AI assistants operate a [Tebex](https://www.tebex.io) store via the [Plugin API](https://docs.tebex.io/plugin): packages, payments, gift cards, coupons, bans, sales, community goals, command queue, and player lookups — all behind one bearer-authenticated HTTP endpoint.
 
-Built on **[FastMCP 3.x](https://gofastmcp.com)** + Python 3.12 + asyncio. The skeleton (settings → client → tool registration → custom routes) is the same one used by [`ptero-mcp-server`](../ptero-mcp-server) and is intentionally portable to other REST-backed integrations.
+Built on **[FastMCP 3.x](https://gofastmcp.com)** + Python 3.12 + asyncio.
 
 ---
 
 ## Overview
 
-The Tebex Plugin API is a clean REST surface but it's tedious to use from a chat assistant: 30+ endpoints, opaque pagination on `/payments`, scoped IDs (player vs Tebex player vs txn vs hashid), and a 500-req / 5-min rate limit that punishes naive scraping. This server wraps it as **typed MCP tools** with a few opinionated helpers:
+The Tebex Plugin API is tedious from a chat assistant: 30+ endpoints, opaque `/payments` pagination, several distinct ID kinds, and a 500-req / 5-min rate limit. This server wraps it as **typed MCP tools** with a few helpers:
 
-- `search_payments` — paginates `/payments` automatically with **early-exit** on the date boundary (since payments are returned newest-first), filters by username substring, status, package id, and amount range, and reports `has_more` so the assistant can decide whether to keep digging.
-- Path components are URL-quoted before hitting the API — no path-traversal shenanigans from a creative LLM prompt.
-- A single long-lived `httpx.AsyncClient` with retry + exponential backoff on 5xx and network errors (3 attempts, 0.4s → 0.8s → 1.6s).
-- Structured logging via `structlog`: every Tebex request is logged at `DEBUG`, every 4xx/5xx at `WARNING` with the response body, every retry at `WARNING` with attempt counter and backoff.
+- `search_payments` — auto-paginates `/payments` with **early-exit** on the date boundary (payments are newest-first), filters by username, status, package, and amount, and reports `has_more`.
+- Path components are URL-quoted before the call.
+- One long-lived `httpx.AsyncClient` with retry + exponential backoff on 5xx/network errors.
+- Structured `structlog` logging: every request at `DEBUG`, 4xx/5xx and retries at `WARNING`.
 
 ## Features
 
@@ -112,7 +112,7 @@ To switch stores from Claude Code at runtime, use `claude mcp` to enable/disable
 
 ## Tools
 
-Thirty-one MCP tools grouped into ten categories. See [`SKILL.md`](./SKILL.md) for composition patterns and methodology.
+Thirty-five MCP tools grouped into nine categories. See [`SKILL.md`](./SKILL.md) for composition patterns and methodology.
 
 ### Information
 
@@ -143,10 +143,6 @@ Thirty-one MCP tools grouped into ten categories. See [`SKILL.md`](./SKILL.md) f
 | `add_payment_note` | Append a note to a payment |
 | `create_checkout` | Generate a checkout URL for a player + package |
 
-### Recurring payments (subscriptions)
-
-`list_recurring_payments`, `get_recurring_payment`, `cancel_recurring_payment`, `pause_recurring_payment` (1-12 months), `reactivate_recurring_payment`
-
 ### Gift cards
 
 `list_gift_cards`, `get_gift_card`, `lookup_gift_card`, `create_gift_card`, `topup_gift_card`, `void_gift_card`
@@ -171,9 +167,9 @@ Thirty-one MCP tools grouped into ten categories. See [`SKILL.md`](./SKILL.md) f
 
 `lookup_player`, `get_player_packages`, `get_command_queue`, `get_offline_commands`, `get_online_commands`, `delete_commands`
 
-### Field selection
+### Response shapes
 
-The Tebex Plugin API does not support server-side field selection, so read tools return the full upstream payload. Client-side filtering is intentionally not implemented — the wire cost upstream would not change, and the marginal context savings are not worth the schema-tracking complexity. If a specific tool's payload becomes a problem in practice, narrow it at the call site.
+Payment and player tools return **normalized** payloads (see `normalize.py`): amounts as floats, currency as ISO code, status lowercased, dates as ISO, null/empty fields dropped, and — for `lookup_player` — each payment's `tbx-…` `transaction_id` surfaced (the only endpoint that carries it). Payments follow a **lean-list / full-detail** split: `list_payments`, `search_payments` and `list_payments_paged` return lean rows (id, date, amount, currency, status, player id+name, package id+name) sized for scanning and stats, while `get_payment` returns the full record (email, gateway, uuid, quantity, notes) — roughly 40% fewer tokens on the listing path, the standard summary/detail pattern. Every other read tool passes the flat Tebex JSON straight through.
 
 ## Configuration
 
@@ -229,6 +225,7 @@ src/tebex_mcp/
 ├── logging.py         # structlog config (text or JSON)
 ├── auth.py            # Bearer token middleware (constant-time compare)
 ├── client.py          # httpx-based TebexClient (retry, backoff, URL-quoted paths)
+├── normalize.py        # Map inconsistent Tebex payloads onto stable shapes
 ├── context.py         # Shared dependency container (ToolContext)
 └── tools/
     ├── __init__.py    # register_all(mcp, ctx)
@@ -244,17 +241,6 @@ src/tebex_mcp/
     ├── players.py
     └── command_queue.py
 ```
-
-## Reusing this skeleton
-
-Same template as `ptero-mcp-server`. To start a new MCP service from this layout:
-
-1. Replace `client.py` with your upstream API wrapper (httpx async, retry-aware).
-2. Add a tool module per logical domain in `tools/` and register it in `tools/__init__.py`.
-3. Update `Settings` in `config.py` with the env vars you need; `pydantic-settings` validates them at startup.
-4. Add custom HTTP routes in `server.py` next to `/healthz`.
-
-Everything else — auth middleware, FastMCP lifespan, structured logging, Docker, healthcheck — is reusable as-is.
 
 ## Deployment notes
 

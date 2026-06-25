@@ -50,7 +50,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     async def delete_commands(
         ids: Annotated[
             list[int],
-            Field(description="Array of command IDs to remove from the queue", min_length=1),
+            Field(description="Command IDs to remove", min_length=1),
         ],
     ) -> dict[str, Any]:
         await ctx.client.delete_commands(ids)

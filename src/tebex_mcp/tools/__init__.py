@@ -14,7 +14,6 @@ from tebex_mcp.tools.information import register as register_information
 from tebex_mcp.tools.packages import register as register_packages
 from tebex_mcp.tools.payments import register as register_payments
 from tebex_mcp.tools.players import register as register_players
-from tebex_mcp.tools.recurring_payments import register as register_recurring_payments
 from tebex_mcp.tools.sales import register as register_sales
 
 
@@ -22,7 +21,6 @@ def register_all(mcp: FastMCP, ctx: ToolContext) -> None:
     register_information(mcp, ctx)
     register_packages(mcp, ctx)
     register_payments(mcp, ctx)
-    register_recurring_payments(mcp, ctx)
     register_gift_cards(mcp, ctx)
     register_coupons(mcp, ctx)
     register_bans(mcp, ctx)

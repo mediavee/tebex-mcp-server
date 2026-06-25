@@ -20,12 +20,19 @@ from tebex_mcp.tools._common import (
 def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(
         name="list_coupons",
-        description="List all coupons with code, discount, scope, expiration, and usage stats. Paginated.",
+        description=(
+            "List coupons (code, discount, scope, expiry, usage). Paginated: "
+            "`pagination` has `currentPage`/`lastPage`/`next`; pass `page` for more."
+        ),
         annotations=READ_ONLY,
     )
     @map_tebex_errors
-    async def list_coupons() -> Any:
-        return await ctx.client.list_coupons()
+    async def list_coupons(
+        page: Annotated[
+            int | None, Field(description="Page number (1-indexed, default: 1)", ge=1)
+        ] = None,
+    ) -> Any:
+        return await ctx.client.list_coupons(page)
 
     @mcp.tool(
         name="get_coupon",
@@ -45,63 +52,60 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     )
     @map_tebex_errors
     async def create_coupon(
-        code: Annotated[str, Field(description="Coupon code customers will enter", min_length=1)],
+        code: Annotated[str, Field(description="Code customers enter", min_length=1)],
         effective_on: Annotated[
             Literal["package", "category", "cart"],
             Field(description="What the coupon applies to"),
         ],
         discount_type: Annotated[
             Literal["value", "percentage"],
-            Field(description="Whether the discount is a fixed value or a percentage"),
+            Field(description="Fixed value or percentage"),
         ],
         redeem_unlimited: Annotated[
-            bool, Field(description="If true, coupon can be redeemed unlimited times")
+            bool, Field(description="Redeemable unlimited times")
         ],
-        expire_never: Annotated[bool, Field(description="If true, coupon never expires")],
+        expire_never: Annotated[bool, Field(description="Never expires")],
         basket_type: Annotated[
             Literal["single", "subscription", "both"],
-            Field(description="Which basket types the coupon works with"),
+            Field(description="Applicable basket types"),
         ],
         minimum: Annotated[
-            float, Field(description="Minimum basket value for the coupon to apply", ge=0)
+            float, Field(description="Min basket value to apply", ge=0)
         ],
         discount_application_method: Annotated[
             int,
             Field(
-                description=(
-                    "Application method: 0 = apply to each package, "
-                    "1 = apply to basket total, 2 = apply once to most expensive"
-                ),
+                description="0 = each package, 1 = basket total, 2 = most expensive item",
                 ge=0,
                 le=2,
             ),
         ],
         packages: Annotated[
             list[int] | None,
-            Field(description="Package IDs the coupon applies to (when effective_on=package)"),
+            Field(description="Package IDs (when effective_on=package)"),
         ] = None,
         categories: Annotated[
             list[int] | None,
-            Field(description="Category IDs the coupon applies to (when effective_on=category)"),
+            Field(description="Category IDs (when effective_on=category)"),
         ] = None,
         discount_amount: Annotated[
             float | None,
-            Field(description="Fixed discount amount (when discount_type=value)", ge=0),
+            Field(description="Amount (when discount_type=value)", ge=0),
         ] = None,
         discount_percentage: Annotated[
             float | None,
-            Field(description="Discount percentage (when discount_type=percentage)", ge=0, le=100),
+            Field(description="Percent (when discount_type=percentage)", ge=0, le=100),
         ] = None,
         expire_limit: Annotated[
             int | None,
-            Field(description="Max number of redemptions (when redeem_unlimited=false)", ge=1),
+            Field(description="Max redemptions (when redeem_unlimited=false)", ge=1),
         ] = None,
         expire_date: Annotated[
-            str | None, Field(description="Expiration date (when expire_never=false)")
+            str | None, Field(description="Expiry date (when expire_never=false)")
         ] = None,
-        start_date: Annotated[str | None, Field(description="Start date for the coupon")] = None,
+        start_date: Annotated[str | None, Field(description="Start date")] = None,
         username: Annotated[
-            str | None, Field(description="Restrict coupon to a specific username")
+            str | None, Field(description="Restrict to one username")
         ] = None,
         note: Annotated[str | None, Field(description="Internal note")] = None,
     ) -> Any:
