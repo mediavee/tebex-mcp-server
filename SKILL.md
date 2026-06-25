@@ -5,7 +5,7 @@ description: Operate a Tebex web store via the Plugin API — look up payments a
 
 # Tebex store operations
 
-You have access to the `tebex-mcp` MCP server, which wraps the [Tebex Plugin API](https://docs.tebex.io/developers/plugin-api/endpoints) (`https://plugin.tebex.io`). The server is per-store: one running instance talks to exactly one Tebex secret.
+You have access to the `tebex-mcp` MCP server, which wraps the [Tebex Plugin API](https://docs.tebex.io/plugin) (`https://plugin.tebex.io`). One running instance can serve any number of stores; each request carries its store's secret.
 
 ## When to use this skill
 
@@ -71,18 +71,18 @@ If the user is asking about **in-game delivery mechanics** (the plugin running o
 
 | Identifier | Type | Where it comes from | What accepts it |
 |---|---|---|---|
-| `txn_id` (e.g. `tbx-abc123`) | string | `payment.txn_id` from any payments listing | `get_payment`, `update_payment`, `add_payment_note` |
-| `player.id` (e.g. `1234567`) | int | `payment.player.id`, `lookup_player` response | `get_player_packages`, `get_online_commands` |
+| `txn_id` (e.g. `tbx-abc123`) | string | **only** `lookup_player` → `payments[].transaction_id`, or a Tebex webhook/email. The payment listings do **not** expose it — their numeric `id` is not accepted by these tools. | `get_payment`, `update_payment`, `add_payment_note` |
+| `player.id` (e.g. `1234567`) | int | `payment.player.id` from any listing, or `lookup_player` → `player.id` | `get_player_packages`, `get_online_commands` |
 | in-game name / UUID (e.g. `Notch`, `069a79f4-…`) | string | The player tells you, or you read it from the game server | `lookup_player`, `create_payment` (`ign`), `create_checkout` (`username`), `create_ban` (`user`) |
 
-When the user gives you a username, you usually need to **resolve it to a Tebex player id first** (via `lookup_player` if available, or by pulling it out of a recent payment via `search_payments`) before you can call `get_player_packages` or the per-player command queue tools.
+When the user gives you a username, you usually need to **resolve it to a Tebex player id first** (via `lookup_player`, or by pulling `player.id` out of a recent payment via `search_payments`) before you can call `get_player_packages` or the per-player command queue tools. To act on a *specific payment* (refund, note), you need its `tbx-…` `transaction_id`, which **only `lookup_player` surfaces** — `search_payments` cannot give it to you.
 
 ## Methodology
 
 ### Refund or chargeback a payment
 
-1. If the user gave you a **transaction id** directly: `get_payment(transaction_id)` to confirm amount, packages, and current status.
-2. If the user gave you a **username** or vague description ("the guy who bought VIP yesterday"): `search_payments(username=…, from=…)` to surface the candidate, then `get_payment` on the txn id.
+1. If the user gave you a **`tbx-…` transaction id** directly: `get_payment(transaction_id)` to confirm amount, packages, and current status.
+2. If the user gave you a **username** or vague description ("the guy who bought VIP yesterday"): `lookup_player(username)` and read the candidate's `transaction_id` from the returned `payments[]` (this is the only way to get it — `search_payments` returns the numeric `id`, which `update_payment` rejects). Then `get_payment(transaction_id)` to confirm. If lookup is unavailable (not on Ultimate), you need the `tbx-…` id from a webhook/email.
 3. Show the user what you found (amount, package, date) and confirm which status to apply: `refund` (the buyer's request) or `chargeback` (forced by the bank).
 4. `update_payment(transaction_id, status="refund" | "chargeback")`.
 5. If you're not sure what changed downstream, fetch the payment again (`get_payment`) — Tebex usually flags packages for revocation automatically when a payment moves out of `complete`.
@@ -136,40 +136,44 @@ search_payments(from="2026-04-01", to="2026-04-30", status="complete", limit=100
 
 The early-exit on the lower bound (`from`) means the call stops scanning as soon as it crosses April 1st — no wasted pages. Inspect `meta.has_more` to know whether you need a second pass with a smaller window.
 
-For revenue or volume aggregates, do the math client-side from the `results` array — Tebex doesn't expose pre-aggregated stats via this API. The `price` field on each payment is a **string** (currency-formatted), parse with care.
+For revenue or volume aggregates, do the math client-side from the `results` array — Tebex doesn't expose pre-aggregated stats via this API. Each result's `amount` is a normalized **float** in the store currency, ready to sum directly.
 
 ### Ban a fraudulent buyer
 
 Pattern: someone abuses chargebacks or runs stolen-card purchases.
 
 1. `search_payments(username=…, status="chargeback")` to confirm the pattern (multiple chargebacks across separate payments is the signal — one isolated chargeback is often a banking dispute, not fraud).
-2. Pull the **IPs and player identifier** from `get_payment` on each suspicious transaction (the payment payload includes the buyer's IP).
-3. `create_ban(reason=<short reason>, user=<username or UUID>, ip=<ip>)` — pass both `user` and `ip` in the same call to ban both vectors at once.
+2. Read the **player identifier and email** from the search results. The payment endpoints do **not** expose the buyer's IP — `list_bans` is where IPs live, so ban by `user`/UUID unless you already have an IP from elsewhere.
+3. `create_ban(reason=<short reason>, user=<username or UUID>, ip=<ip if known>)` — pass both `user` and `ip` in the same call to ban both vectors at once.
 4. Optional: `add_payment_note` on the related payments documenting why they were chargebacked, so the next operator who looks knows the history.
 
 ## Reading tool output
 
-Most Tebex Plugin API responses are flat JSON — no `data`/`attributes` envelope (unlike Pterodactyl). Exceptions:
+Payment and player tools return **normalized** shapes (consistent types, no per-endpoint quirks). Other tools pass the flat Tebex JSON through. Notable shapes:
 
-- `list_payments_paged` (and `search_payments` internally) returns `{pagination: {current_page, last_page}, data: [...]}`.
-- `search_payments` wraps results in `{results: [...], meta: {matched, scanned, pages_scanned, has_more}}`.
-- Several "create" tools wrapped by this MCP return `{ok: true, ...}` with the input echoed back when Tebex itself returns 204 No Content (so you can chain).
+- `list_payments` → a list of normalized payments. `get_payment` → one normalized payment.
+- `list_payments_paged` → `{data: [...normalized payments], pagination: {current_page, last_page, total, per_page}}`.
+- `search_payments` → `{results: [...normalized payments], meta: {matched, scanned, pages_scanned, has_more}}`.
+- `lookup_player` → `{player, ban_count, chargeback_rate, purchase_totals, payments: [...]}`, where each payment carries its `transaction_id`.
+- Several "create" tools return `{ok: true, ...}` with the input echoed back when Tebex returns 204 No Content (so you can chain).
 
-Payment shape (the one you'll touch most):
+Normalized payment shape (list/paged/get/search):
 
 ```json
 {
-  "txn_id": "tbx-abc123",
-  "date": "2026-04-12T14:32:01+00:00",
-  "price": "9.99",
+  "id": 113458469,
+  "amount": 9.99,
   "currency": "EUR",
   "status": "complete",
+  "date": "2026-04-12T14:32:01+00:00",
+  "email": "buyer@example.com",
+  "gateway": "Tebex Checkout",
   "player": { "id": 1234567, "name": "Notch", "uuid": "069a79f4-…" },
-  "packages": [ { "id": 4242, "name": "VIP" } ]
+  "packages": [ { "id": 4242, "name": "VIP", "quantity": 1 } ]
 }
 ```
 
-Note `price` is a **string**, `player.id` is an **int**, `txn_id` is a **string starting with `tbx-`**.
+`amount` is a **float**, `status` is **lowercase** (`complete` / `refund` / `chargeback`), `id` is the numeric payment id (**not** a `tbx-…` id). The `tbx-…` `transaction_id` appears **only** under `lookup_player → payments[]` — that payment shape is `{transaction_id, date, amount, currency, status_code, status}` (Tebex returns numeric `status_code`s here; `1` = complete is verified, others left unlabeled).
 
 ## Error shapes
 

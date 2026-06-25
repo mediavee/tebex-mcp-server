@@ -1,6 +1,6 @@
 # tebex-mcp-server
 
-An [MCP](https://modelcontextprotocol.io) server that lets AI assistants operate a [Tebex](https://www.tebex.io) store via the [Plugin API](https://docs.tebex.io/developers/plugin-api/endpoints): packages, payments, gift cards, coupons, bans, sales, community goals, command queue, and player lookups — all behind one bearer-authenticated HTTP endpoint.
+An [MCP](https://modelcontextprotocol.io) server that lets AI assistants operate a [Tebex](https://www.tebex.io) store via the [Plugin API](https://docs.tebex.io/plugin): packages, payments, gift cards, coupons, bans, sales, community goals, command queue, and player lookups — all behind one bearer-authenticated HTTP endpoint.
 
 Built on **[FastMCP 3.x](https://gofastmcp.com)** + Python 3.12 + asyncio. The skeleton (settings → client → tool registration → custom routes) is the same one used by [`ptero-mcp-server`](../ptero-mcp-server) and is intentionally portable to other REST-backed integrations.
 
@@ -167,9 +167,9 @@ Thirty-five MCP tools grouped into nine categories. See [`SKILL.md`](./SKILL.md)
 
 `lookup_player`, `get_player_packages`, `get_command_queue`, `get_offline_commands`, `get_online_commands`, `delete_commands`
 
-### Field selection
+### Response shapes
 
-The Tebex Plugin API does not support server-side field selection, so read tools return the full upstream payload. Client-side filtering is intentionally not implemented — the wire cost upstream would not change, and the marginal context savings are not worth the schema-tracking complexity. If a specific tool's payload becomes a problem in practice, narrow it at the call site.
+Payment and player tools return **normalized** payloads (see `normalize.py`): amounts as floats, currency as ISO code, status lowercased, dates as ISO, and — for `lookup_player` — each payment's `tbx-…` `transaction_id` surfaced (the only endpoint that carries it). Every other read tool passes the flat Tebex JSON straight through; the Plugin API has no server-side field selection, and trimming payloads client-side isn't worth the schema-tracking churn.
 
 ## Configuration
 
@@ -225,6 +225,7 @@ src/tebex_mcp/
 ├── logging.py         # structlog config (text or JSON)
 ├── auth.py            # Bearer token middleware (constant-time compare)
 ├── client.py          # httpx-based TebexClient (retry, backoff, URL-quoted paths)
+├── normalize.py        # Map inconsistent Tebex payloads onto stable shapes
 ├── context.py         # Shared dependency container (ToolContext)
 └── tools/
     ├── __init__.py    # register_all(mcp, ctx)
