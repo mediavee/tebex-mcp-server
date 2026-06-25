@@ -149,31 +149,31 @@ Pattern: someone abuses chargebacks or runs stolen-card purchases.
 
 ## Reading tool output
 
-Payment and player tools return **normalized** shapes (consistent types, no per-endpoint quirks). Other tools pass the flat Tebex JSON through. Notable shapes:
+Payment and player tools return **normalized** shapes (consistent types, no per-endpoint quirks) with null/empty fields dropped. Other tools pass the flat Tebex JSON through. Payments come in two tiers — **lean** for listings, **full** for the single-record fetch:
 
-- `list_payments` → a list of normalized payments. `get_payment` → one normalized payment.
-- `list_payments_paged` → `{data: [...normalized payments], pagination: {current_page, last_page, total, per_page}}`.
-- `search_payments` → `{results: [...normalized payments], meta: {matched, scanned, pages_scanned, has_more}}`.
+- `list_payments` / `search_payments` / `list_payments_paged` → **lean** payments (built for scanning and stats). `search_payments` wraps them in `{results, meta:{matched, scanned, pages_scanned, has_more}}`; `list_payments_paged` in `{data, pagination:{current_page, last_page, total, per_page}}`.
+- `get_payment` → **full** payment (adds email, gateway, notes, player.uuid, package quantity).
 - `lookup_player` → `{player, ban_count, chargeback_rate, purchase_totals, payments: [...]}`, where each payment carries its `transaction_id`.
 - Several "create" tools return `{ok: true, ...}` with the input echoed back when Tebex returns 204 No Content (so you can chain).
 
-Normalized payment shape (list/paged/get/search):
+Lean payment (lists) vs full (get_payment):
 
 ```json
-{
-  "id": 113458469,
-  "amount": 9.99,
-  "currency": "EUR",
-  "status": "complete",
-  "date": "2026-04-12T14:32:01+00:00",
-  "email": "buyer@example.com",
+// lean — list_payments / search_payments / list_payments_paged
+{ "id": 113458469, "date": "2026-04-12T14:32:01+00:00", "amount": 9.99,
+  "currency": "EUR", "status": "complete",
+  "player": { "id": 1234567, "name": "Notch" },
+  "packages": [ { "id": 4242, "name": "VIP" } ] }
+
+// full — get_payment (adds email, gateway, uuid, quantity, notes)
+{ "id": 113458469, "amount": 9.99, "currency": "EUR", "status": "complete",
+  "date": "2026-04-12T14:32:01+00:00", "email": "buyer@example.com",
   "gateway": "Tebex Checkout",
   "player": { "id": 1234567, "name": "Notch", "uuid": "069a79f4-…" },
-  "packages": [ { "id": 4242, "name": "VIP", "quantity": 1 } ]
-}
+  "packages": [ { "id": 4242, "name": "VIP", "quantity": 1 } ] }
 ```
 
-`amount` is a **float**, `status` is **lowercase** (`complete` / `refund` / `chargeback`), `id` is the numeric payment id (**not** a `tbx-…` id). The `tbx-…` `transaction_id` appears **only** under `lookup_player → payments[]` — that payment shape is `{transaction_id, date, amount, currency, status_code, status}` (Tebex returns numeric `status_code`s here; `1` = complete is verified, others left unlabeled).
+`amount` is a **float**, `status` is **lowercase** (`complete` / `refund` / `chargeback` / `declined`), `id` is the numeric payment id (**not** a `tbx-…` id). The `tbx-…` `transaction_id` appears **only** under `lookup_player → payments[]` — that payment shape is `{transaction_id, date, amount, currency, status_code, status}` (Tebex returns numeric `status_code`s here; `1` = complete is verified, others left unlabeled). Both tiers carry enough to compute stats client-side; reach for `get_payment` only when you need a single record's full detail.
 
 ## Error shapes
 

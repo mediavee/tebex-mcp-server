@@ -127,7 +127,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
 
             for raw in data:
                 scanned += 1
-                item = normalize.payment(raw)
+                item = normalize.payment_summary(raw)
                 payment_date = _try_parse_iso(item.get("date"))
 
                 # Payments are sorted desc — once we cross the lower bound, stop.
@@ -186,7 +186,10 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
 
     @mcp.tool(
         name="list_payments",
-        description="Get the latest payments (up to 100): id, amount, date, status, player, packages.",
+        description=(
+            "Get the latest payments (up to 100), lean: id, date, amount, currency, "
+            "status, player, packages. Use get_payment for full detail."
+        ),
         annotations=READ_ONLY,
     )
     @map_tebex_errors
@@ -197,7 +200,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
         ] = None,
     ) -> list[dict[str, Any]]:
         raw = await ctx.client.list_payments(limit)
-        return [normalize.payment(p) for p in raw if isinstance(p, dict)]
+        return [normalize.payment_summary(p) for p in raw if isinstance(p, dict)]
 
     @mcp.tool(
         name="list_payments_paged",

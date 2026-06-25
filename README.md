@@ -169,7 +169,7 @@ Thirty-five MCP tools grouped into nine categories. See [`SKILL.md`](./SKILL.md)
 
 ### Response shapes
 
-Payment and player tools return **normalized** payloads (see `normalize.py`): amounts as floats, currency as ISO code, status lowercased, dates as ISO, and — for `lookup_player` — each payment's `tbx-…` `transaction_id` surfaced (the only endpoint that carries it). Every other read tool passes the flat Tebex JSON straight through; the Plugin API has no server-side field selection, and trimming payloads client-side isn't worth the schema-tracking churn.
+Payment and player tools return **normalized** payloads (see `normalize.py`): amounts as floats, currency as ISO code, status lowercased, dates as ISO, null/empty fields dropped, and — for `lookup_player` — each payment's `tbx-…` `transaction_id` surfaced (the only endpoint that carries it). Payments follow a **lean-list / full-detail** split: `list_payments`, `search_payments` and `list_payments_paged` return lean rows (id, date, amount, currency, status, player id+name, package id+name) sized for scanning and stats, while `get_payment` returns the full record (email, gateway, uuid, quantity, notes) — roughly 40% fewer tokens on the listing path, the standard summary/detail pattern. Every other read tool passes the flat Tebex JSON straight through.
 
 ## Configuration
 
