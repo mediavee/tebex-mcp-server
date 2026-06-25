@@ -112,7 +112,7 @@ To switch stores from Claude Code at runtime, use `claude mcp` to enable/disable
 
 ## Tools
 
-Thirty-one MCP tools grouped into ten categories. See [`SKILL.md`](./SKILL.md) for composition patterns and methodology.
+Thirty-five MCP tools grouped into nine categories. See [`SKILL.md`](./SKILL.md) for composition patterns and methodology.
 
 ### Information
 
@@ -142,10 +142,6 @@ Thirty-one MCP tools grouped into ten categories. See [`SKILL.md`](./SKILL.md) f
 | `update_payment` | Change username or status (`complete` / `chargeback` / `refund`) |
 | `add_payment_note` | Append a note to a payment |
 | `create_checkout` | Generate a checkout URL for a player + package |
-
-### Recurring payments (subscriptions)
-
-`list_recurring_payments`, `get_recurring_payment`, `cancel_recurring_payment`, `pause_recurring_payment` (1-12 months), `reactivate_recurring_payment`
 
 ### Gift cards
 

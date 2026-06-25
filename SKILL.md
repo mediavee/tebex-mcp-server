@@ -17,8 +17,7 @@ Triggers (any language):
 - "create a coupon / launch a promo"
 - "ban this user from the store"
 - "show me last month's revenue / chargebacks"
-- "cancel / pause / reactivate the subscription for X"
-- A bare transaction id like `tbx-abc123` or recurring payment reference `rp-abc123`
+- A bare transaction id like `tbx-abc123`
 
 If the user is asking about **in-game delivery mechanics** (the plugin running on the game server, command execution on the Minecraft side), this skill can only confirm what Tebex sent — anything past `get_command_queue` belongs to the game server's tooling.
 
@@ -41,12 +40,7 @@ If the user is asking about **in-game delivery mechanics** (the plugin running o
 - `add_payment_note` — append an internal note to a payment.
 - `create_checkout` — generate a hosted checkout URL for a player + package.
 
-### Recurring payments (subscriptions)
-- `list_recurring_payments` — every active / paused / cancelled subscription on the store.
-- `get_recurring_payment` — details by reference (`rp-…`).
-- `cancel_recurring_payment` — stop billing. Customer keeps access until the end of the current period; subscription cannot be restored — they must subscribe again.
-- `pause_recurring_payment(reference, months)` — temporarily suspend billing for 1-12 months. Resumes automatically.
-- `reactivate_recurring_payment` — un-pause before the window ends.
+> Subscriptions (recurring payments) are **not** part of the Tebex Plugin API — they live on the separate Checkout API (`checkout.tebex.io/api`, Basic auth) and are intentionally out of scope here.
 
 ### Gift cards
 - `list_gift_cards`, `get_gift_card`, `lookup_gift_card` (by customer-facing code), `create_gift_card`, `topup_gift_card`, `void_gift_card`.
@@ -131,17 +125,6 @@ For a coupon, the parameters that matter most:
 - `discount_application_method`: `0` = each package, `1` = basket total, `2` = once on most expensive item. Most common is `1` for cart coupons, `0` for package coupons.
 
 If the user describes a one-off "10% off this weekend, anyone can use it" → coupon with `redeem_unlimited=true`, `expire_never=false` and a date. If they describe "10€ off for player Notch as compensation" → coupon with `username="Notch"`, `expire_limit=1`.
-
-### Cancel or pause a subscription
-
-When the user asks "cancel the subscription of player X" or "pause my subscription for 2 months":
-
-1. **Resolve the recurring payment reference.** If they already have it (`rp-…`), skip ahead. Otherwise: `list_recurring_payments` and match by customer name / email — there's no per-user filter on this endpoint, so you scan client-side.
-2. `get_recurring_payment(reference)` to confirm amount, package, and current status before doing anything irreversible.
-3. Choose the action:
-   - **Cancel** (`cancel_recurring_payment`) — billing stops, customer keeps access until the end of the current period. **Cannot be undone** — restoring requires the customer to subscribe again. Always confirm with the user before calling.
-   - **Pause** (`pause_recurring_payment(reference, months=N)`) — suspends billing for 1-12 months, resumes automatically. Use for "I'll be away for 3 months" requests.
-   - **Reactivate** (`reactivate_recurring_payment`) — un-pause early.
 
 ### Audit transactions over a period
 
