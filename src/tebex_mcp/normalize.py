@@ -97,7 +97,8 @@ def payment_summary(raw: dict[str, Any]) -> dict[str, Any]:
     """Lean payment for listings: just what stats and scanning need. Call
     get_payment for the full record (email, gateway, notes, uuid, quantity)."""
     player = raw.get("player")
-    packages = raw.get("packages") if isinstance(raw.get("packages"), list) else []
+    raw_packages = raw.get("packages")
+    packages = raw_packages if isinstance(raw_packages, list) else []
     return _compact(
         {
             "id": raw.get("id"),
@@ -141,7 +142,8 @@ def package_storefront(raw: dict[str, Any]) -> dict[str, Any]:
     """Customer-facing storefront fields the Plugin package config lacks
     (Headless API). Excludes id/name/image/type/category/base_price, which the
     Plugin config already carries, so this nests cleanly under it."""
-    p = raw.get("data") if isinstance(raw.get("data"), dict) else raw
+    data = raw.get("data")
+    p = data if isinstance(data, dict) else raw
     return _compact(
         {
             "description": p.get("description"),

@@ -2,7 +2,7 @@
 
 An [MCP](https://modelcontextprotocol.io) server that lets AI assistants operate a [Tebex](https://www.tebex.io) store via the [Plugin API](https://docs.tebex.io/plugin): packages, payments, gift cards, coupons, bans, sales, community goals, command queue, and player lookups — plus read-only storefront views (package descriptions, pricing) via the Headless API — all behind one bearer-authenticated HTTP endpoint.
 
-Built on **[FastMCP 3.x](https://gofastmcp.com)** + Python 3.12 + asyncio.
+Built on **[FastMCP 3.x](https://gofastmcp.com)** + Python 3.13 + asyncio.
 
 ---
 
@@ -213,6 +213,7 @@ uv run tebex-mcp                 # run the server
 uv run python -m tebex_mcp       # equivalent
 uv run ruff check src            # lint
 uv run ruff format src           # format
+uv run mypy src                  # type-check (strict)
 ```
 
 The codebase is small, async-first, and flat:

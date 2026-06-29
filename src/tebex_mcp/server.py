@@ -10,10 +10,11 @@ import uvicorn
 from fastmcp import FastMCP
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Mount
+from starlette.types import ASGIApp
 
 from tebex_mcp import __version__
 from tebex_mcp.auth import bearer_auth
@@ -87,11 +88,13 @@ def build_asgi_app(settings: Settings) -> Starlette:
 class _AuthMiddleware(BaseHTTPMiddleware):
     """Bearer-token + per-request Tebex secret gate. Skipped on /healthz."""
 
-    def __init__(self, app, expected_token: str) -> None:
+    def __init__(self, app: ASGIApp, expected_token: str) -> None:
         super().__init__(app)
         self._guard = bearer_auth(expected_token)
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         if request.url.path == "/healthz":
             return await call_next(request)
 
