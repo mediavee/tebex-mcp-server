@@ -1,6 +1,8 @@
 services:
   tebex-mcp:
     build: .
+    # Or pull the published image instead of building:
+    # image: ghcr.io/mediavee/tebex-mcp-server:latest
     container_name: tebex-mcp
     restart: unless-stopped
     env_file: .env

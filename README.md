@@ -245,6 +245,7 @@ src/tebex_mcp/
 
 ## Deployment notes
 
+- **Published image.** Cutting a release (`git tag v1.2.3 && git push --tags`) builds and pushes `ghcr.io/mediavee/tebex-mcp-server:1.2.3` + `:latest` to GHCR. To run from the registry instead of building, uncomment the `image:` line in `docker-compose.yml`, then `docker compose pull && docker compose up -d`.
 - **Security.** Tebex secrets travel in the `X-Tebex-Secret` header. The server does not log them and does not persist them. **TLS in front is non-negotiable** unless the listener is bound to loopback or a private network (Tailscale, WireGuard). `MCP_AUTH_TOKEN` gates access at the bearer layer. `.env` is in `.gitignore` — keep it that way.
 - **Rate limit.** The Plugin API caps at 500 requests per 5-minute rolling window per secret. With multi-store usage that quota is naturally per-store. `search_payments` mitigates burn by stopping as soon as it crosses the date floor or hits its result cap, but a long unbounded scan can still exhaust the budget. The `tebex_tool_error` log line surfaces 429s explicitly.
 - **One process for many stores.** A single instance handles any number of stores concurrently — secrets are scoped per-request via a `ContextVar`, no global state.
