@@ -252,4 +252,4 @@ src/tebex_mcp/
 
 ## License
 
-Private. © Mediavee.
+[MIT](./LICENSE) © Mediavee.
