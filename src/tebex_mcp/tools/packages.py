@@ -78,9 +78,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
             float | None, Field(description="New price in store currency", ge=0)
         ] = None,
     ) -> dict[str, Any]:
-        await ctx.client.update_package(
-            package_id, disabled=disabled, name=name, price=price
-        )
+        await ctx.client.update_package(package_id, disabled=disabled, name=name, price=price)
         return ok(
             package_id=package_id,
             updated={"disabled": disabled, "name": name, "price": price},

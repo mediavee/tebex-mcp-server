@@ -25,9 +25,7 @@ def _parse_user_iso(value: str, field: str) -> datetime:
     """Parse a user-supplied ISO-8601 date. Raises ToolError on malformed input."""
     parsed = _try_parse_iso(value)
     if parsed is None:
-        raise ToolError(
-            f"Invalid '{field}' date format. Use ISO 8601 (e.g. 2026-04-01)."
-        )
+        raise ToolError(f"Invalid '{field}' date format. Use ISO 8601 (e.g. 2026-04-01).")
     return parsed
 
 
@@ -72,9 +70,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
             Field(description="On/before this ISO date (e.g. 2026-04-14)"),
         ] = None,
         package_id: Annotated[int | None, Field(description="Package ID", ge=1)] = None,
-        status: Annotated[
-            PaymentStatus | None, Field(description="Payment status")
-        ] = None,
+        status: Annotated[PaymentStatus | None, Field(description="Payment status")] = None,
         min_amount: Annotated[float | None, Field(description="Min amount")] = None,
         max_amount: Annotated[float | None, Field(description="Max amount")] = None,
         limit: Annotated[
@@ -210,9 +206,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     )
     @map_tebex_errors
     async def get_payment(
-        transaction_id: Annotated[
-            str, Field(description="`tbx-…` transaction id")
-        ],
+        transaction_id: Annotated[str, Field(description="`tbx-…` transaction id")],
     ) -> dict[str, Any]:
         return normalize.payment(await ctx.client.get_payment(transaction_id))
 
@@ -250,9 +244,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
         price: Annotated[float, Field(description="Total price", ge=0)],
         note: Annotated[str, Field(description="Internal note")],
     ) -> dict[str, Any]:
-        await ctx.client.create_payment(
-            ign=ign, packages=packages, price=price, note=note
-        )
+        await ctx.client.create_payment(ign=ign, packages=packages, price=price, note=note)
         return ok(ign=ign, packages_count=len(packages))
 
     @mcp.tool(
@@ -275,9 +267,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
             Field(description="New payment status"),
         ] = None,
     ) -> dict[str, Any]:
-        await ctx.client.update_payment(
-            transaction_id, username=username, status=status
-        )
+        await ctx.client.update_payment(transaction_id, username=username, status=status)
         return ok(
             transaction_id=transaction_id,
             updated={"username": username, "status": status},

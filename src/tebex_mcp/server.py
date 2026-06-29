@@ -92,9 +92,7 @@ class _AuthMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self._guard = bearer_auth(expected_token)
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         if request.url.path == "/healthz":
             return await call_next(request)
 

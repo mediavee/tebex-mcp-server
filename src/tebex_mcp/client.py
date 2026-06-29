@@ -163,8 +163,7 @@ class TebexClient:
                     body=parsed,
                 )
                 raise TebexError(
-                    f"Tebex API {method} {path} failed: "
-                    f"{resp.status_code} {resp.reason_phrase}",
+                    f"Tebex API {method} {path} failed: {resp.status_code} {resp.reason_phrase}",
                     resp.status_code,
                     parsed,
                 )
@@ -172,9 +171,7 @@ class TebexClient:
             log.debug("tebex_request", method=method, path=path, status=resp.status_code)
             return parsed
 
-        raise TebexError(
-            f"Tebex API {method} {path} exhausted retries", 0, None
-        ) from last_exc
+        raise TebexError(f"Tebex API {method} {path} exhausted retries", 0, None) from last_exc
 
     # ───────────────────────────── information ─────────────────────────────
 
@@ -265,9 +262,7 @@ class TebexClient:
         return await self._request("GET", "/payments", query={"limit": limit})
 
     async def list_payments_paged(self, page: int | None = None) -> dict[str, Any]:
-        return await self._request(
-            "GET", "/payments", query={"paged": 1, "page": page or 1}
-        )
+        return await self._request("GET", "/payments", query={"paged": 1, "page": page or 1})
 
     async def get_payment(self, transaction_id: str) -> Any:
         return await self._request("GET", f"/payments/{_q(transaction_id)}")
@@ -326,9 +321,7 @@ class TebexClient:
     async def lookup_gift_card(self, code: str) -> Any:
         return await self._request("GET", f"/gift-cards/lookup/{_q(code)}")
 
-    async def create_gift_card(
-        self, *, expires_at: str, note: str, amount: float
-    ) -> Any:
+    async def create_gift_card(self, *, expires_at: str, note: str, amount: float) -> Any:
         return await self._request(
             "POST",
             "/gift-cards",
@@ -336,9 +329,7 @@ class TebexClient:
         )
 
     async def topup_gift_card(self, gift_card_id: int, amount: float) -> Any:
-        return await self._request(
-            "PUT", f"/gift-cards/{gift_card_id}", body={"amount": amount}
-        )
+        return await self._request("PUT", f"/gift-cards/{gift_card_id}", body={"amount": amount})
 
     async def void_gift_card(self, gift_card_id: int) -> None:
         await self._request("DELETE", f"/gift-cards/{gift_card_id}")
@@ -384,9 +375,7 @@ class TebexClient:
     async def lookup_player(self, identifier: str) -> Any:
         return await self._request("GET", f"/user/{_q(identifier)}")
 
-    async def get_player_packages(
-        self, player_id: int, package_id: int | None = None
-    ) -> Any:
+    async def get_player_packages(self, player_id: int, package_id: int | None = None) -> Any:
         return await self._request(
             "GET",
             f"/player/{player_id}/packages",

@@ -35,9 +35,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     )
     @map_tebex_errors
     async def get_player_packages(
-        player_id: Annotated[
-            int, Field(description="Tebex player ID (from lookup_player)", ge=1)
-        ],
+        player_id: Annotated[int, Field(description="Tebex player ID (from lookup_player)", ge=1)],
         package_id: Annotated[
             int | None, Field(description="Filter to a specific package ID", ge=1)
         ] = None,

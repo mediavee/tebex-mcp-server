@@ -110,9 +110,7 @@ def payment_summary(raw: dict[str, Any]) -> dict[str, Any]:
             if isinstance(player, dict)
             else None,
             "packages": [
-                {"id": p.get("id"), "name": p.get("name")}
-                for p in packages
-                if isinstance(p, dict)
+                {"id": p.get("id"), "name": p.get("name")} for p in packages if isinstance(p, dict)
             ],
         }
     )

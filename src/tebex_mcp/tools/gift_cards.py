@@ -56,17 +56,13 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     )
     @map_tebex_errors
     async def create_gift_card(
-        amount: Annotated[
-            float, Field(description="Gift card value in store currency", ge=0)
-        ],
+        amount: Annotated[float, Field(description="Gift card value in store currency", ge=0)],
         expires_at: Annotated[
             str, Field(description="Expiration date in ISO 8601 format (e.g. 2025-12-31)")
         ],
         note: Annotated[str, Field(description="Internal note for this gift card")],
     ) -> Any:
-        return await ctx.client.create_gift_card(
-            amount=amount, expires_at=expires_at, note=note
-        )
+        return await ctx.client.create_gift_card(amount=amount, expires_at=expires_at, note=note)
 
     @mcp.tool(
         name="topup_gift_card",

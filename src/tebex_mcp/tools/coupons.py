@@ -61,17 +61,13 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
             Literal["value", "percentage"],
             Field(description="Fixed value or percentage"),
         ],
-        redeem_unlimited: Annotated[
-            bool, Field(description="Redeemable unlimited times")
-        ],
+        redeem_unlimited: Annotated[bool, Field(description="Redeemable unlimited times")],
         expire_never: Annotated[bool, Field(description="Never expires")],
         basket_type: Annotated[
             Literal["single", "subscription", "both"],
             Field(description="Applicable basket types"),
         ],
-        minimum: Annotated[
-            float, Field(description="Min basket value to apply", ge=0)
-        ],
+        minimum: Annotated[float, Field(description="Min basket value to apply", ge=0)],
         discount_application_method: Annotated[
             int,
             Field(
@@ -104,9 +100,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
             str | None, Field(description="Expiry date (when expire_never=false)")
         ] = None,
         start_date: Annotated[str | None, Field(description="Start date")] = None,
-        username: Annotated[
-            str | None, Field(description="Restrict to one username")
-        ] = None,
+        username: Annotated[str | None, Field(description="Restrict to one username")] = None,
         note: Annotated[str | None, Field(description="Internal note")] = None,
     ) -> Any:
         return await ctx.client.create_coupon(
